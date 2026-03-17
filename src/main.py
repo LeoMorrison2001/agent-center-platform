@@ -3,7 +3,6 @@
 """
 import asyncio
 import logging
-import os
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -11,21 +10,6 @@ from dotenv import load_dotenv
 
 # 加载 .env 文件
 load_dotenv()
-
-# 导入共有模块
-from common.database import init_db
-
-# 导入 RabbitMQ 模块
-from common.mq.connection_manager import mq_manager
-from common.mq.result_consumer import result_consumer
-from common.mq.heartbeat_consumer import heartbeat_consumer
-
-# 导入路由
-from agent_platform.app import router as platform_router
-from agent_platform.ws import platform_ws_router
-from agent_platform.websocket.monitor import monitor_manager
-
-logger = logging.getLogger(__name__)
 
 # 导入共有模块
 from common.database import init_db
