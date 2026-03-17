@@ -1,6 +1,6 @@
 """
-天气智能体 Worker - 基于 LangChain Agent
-使用 Sunday SDK 连接到平台，提供天气查询能力
+天气智能体 Worker - 基于 AgentWorker
+使用平台 SDK 连接，提供天气查询能力
 
 数据来源: OpenMeteo (https://open-meteo.com/)
 - 完全免费，无需 API Key
@@ -9,14 +9,31 @@
 
 import sys
 import os
+import asyncio
 import requests
 from typing import Literal
 
 # 添加项目根目录到 Python 路径
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-from sdk import LangChainAgent
+# 加载 .env 文件
+from dotenv import load_dotenv
+load_dotenv(os.path.join(os.path.dirname(__file__), '.env'))
+
+from sdk import AgentWorker
 from langchain_core.tools import tool
+from langchain.agents import create_agent
+from langchain_google_genai import ChatGoogleGenerativeAI
+
+# ==========================================
+# 模型配置 - 由智能体自己管理（从 .env 加载）
+# ==========================================
+
+MODEL_CONFIG = {
+    "model_name": os.getenv("MODEL_NAME", "gemini-2.5-flash"),
+    "api_key": os.getenv("GOOGLE_API_KEY", ""),
+    "temperature": float(os.getenv("MODEL_TEMPERATURE", "0.0"))
+}
 
 # ==========================================
 # 城市坐标映射（中国主要城市）
@@ -199,21 +216,90 @@ def list_supported_cities() -> str:
 # 创建天气智能体 Worker
 # ==========================================
 
-worker = LangChainAgent(
-    agent_key="weather"
-)
+class WeatherAgent:
+    """天气智能体 - 集成 LangChain Agent 和平台连接"""
 
-# 注册工具
-worker.register_langchain_tool(get_weather)
-worker.register_langchain_tool(compare_weather)
-worker.register_langchain_tool(list_supported_cities)
+    def __init__(self, agent_key: str = "weather", platform_url: str = "ws://localhost:3150/ws/platform/agent"):
+        self.agent_key = agent_key
+        self.platform_url = platform_url
+        self.worker = None
+        self.agent_executor = None
+        self._model = None
+
+        # LangChain 工具列表
+        self._tools = [
+            get_weather,
+            compare_weather,
+            list_supported_cities
+        ]
+
+    def _initialize_model(self):
+        """初始化模型"""
+        if not MODEL_CONFIG["api_key"]:
+            raise ValueError(
+                "请设置 GOOGLE_API_KEY 环境变量\n"
+                "示例: export GOOGLE_API_KEY='your-api-key'"
+            )
+
+        self._model = ChatGoogleGenerativeAI(
+            model=MODEL_CONFIG["model_name"],
+            api_key=MODEL_CONFIG["api_key"],
+            temperature=MODEL_CONFIG["temperature"]
+        )
+
+        # 创建 AgentExecutor
+        self.agent_executor = create_agent(self._model, self._tools)
+
+    async def handle_task(self, task: str) -> str:
+        """处理任务"""
+        if not self.agent_executor:
+            self._initialize_model()
+
+        # 转换为 LangChain 格式
+        inputs = {"messages": [("user", task)]}
+
+        # 执行 Agent
+        final_content = ""
+        for chunk in self.agent_executor.stream(inputs, stream_mode="values"):
+            latest_msg = chunk["messages"][-1]
+            if latest_msg.type == "ai" and not latest_msg.tool_calls:
+                final_content = latest_msg.content
+
+        return final_content or "处理完成"
+
+    def start(self):
+        """启动智能体"""
+        # 创建平台连接 worker
+        self.worker = AgentWorker(
+            agent_key=self.agent_key,
+            platform_url=self.platform_url
+        )
+
+        # 注册任务处理器
+        @self.worker.on_task
+        async def on_task(task: str) -> str:
+            return await self.handle_task(task)
+
+        # 打印启动信息
+        self._print_banner()
+
+        # 启动
+        self.worker.run()
+
+    def _print_banner(self):
+        """打印启动横幅"""
+        print("=" * 50)
+        print(f"🌤️  {self.agent_key} 天气智能体")
+        print("-" * 50)
+        print(f"Platform: {self.platform_url}")
+        print(f"Model:    {MODEL_CONFIG['model_name']}")
+        print(f"Tools:    {len(self._tools)}")
+        print("=" * 50)
 
 
 # ==========================================
 # 启动 Worker
 # ==========================================
 if __name__ == "__main__":
-    print("=" * 50)
-    print("[天气智能体] 启动中...")
-    print("=" * 50)
-    worker.run()
+    agent = WeatherAgent()
+    agent.start()

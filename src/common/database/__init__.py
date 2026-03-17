@@ -1,7 +1,7 @@
-"""Sunday 数据库模块"""
+"""数据库模块"""
 from .base import init_db, get_db, engine, SessionLocal, Base
-from .models import AgentServiceDB, TaskLogDB, SundayModelConfigDB
-from .crud import AgentServiceCRUD, TaskLogCRUD, SundayModelConfigCRUD
+from .models import AgentServiceDB, TaskLogDB
+from .crud import AgentServiceCRUD, TaskLogCRUD
 
 __all__ = [
     "init_db",
@@ -11,8 +11,6 @@ __all__ = [
     "Base",
     "AgentServiceDB",
     "TaskLogDB",
-    "SundayModelConfigDB",
     "AgentServiceCRUD",
     "TaskLogCRUD",
-    "SundayModelConfigCRUD",
 ]

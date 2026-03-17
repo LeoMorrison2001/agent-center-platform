@@ -19,7 +19,6 @@ class MessageType(str, Enum):
     HEARTBEAT_ACK = "heartbeat_ack"
     RESULT_ACK = "result_ack"
     ERROR = "error"
-    CONFIG_UPDATE = "config_update"  # 配置更新消息
 
 
 # ==================== 发送到平台的消息 ====================
@@ -59,7 +58,6 @@ class RegisteredResponse(BaseModel):
     instance_id: str
     heartbeat_interval: int
     message: str
-    model_settings: Optional[Dict[str, Any]] = Field(default=None, description="模型配置")
 
 
 class ErrorResponse(BaseModel):
@@ -79,13 +77,6 @@ class TaskReceivedMessage(BaseModel):
     action: MessageType
     task_id: str
     task_content: str
-
-
-class ConfigUpdateMessage(BaseModel):
-    """配置更新消息"""
-    action: MessageType
-    agent_key: str
-    model_settings: Dict[str, Any]
 
 
 # ==================== SDK 内部模型 ====================

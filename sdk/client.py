@@ -76,9 +76,6 @@ class AgentWorker:
         # 任务处理器
         self._task_handlers: List[TaskHandler] = []
 
-        # 模型配置（从平台获取）
-        self._model_config: Optional[dict] = None
-
         # 异步任务
         self._heartbeat_task: Optional[asyncio.Task] = None
         self._receive_task: Optional[asyncio.Task] = None
@@ -258,11 +255,6 @@ class AgentWorker:
                     f"注册成功! 心跳间隔: {response.heartbeat_interval}秒"
                 )
 
-                # 保存模型配置（如果有）
-                if response.model_settings:
-                    self._model_config = response.model_settings
-                    logger.info(f"模型配置: {self._model_config.get('model_name', 'N/A')}")
-
                 # 调用注册成功钩子
                 await self._on_registered()
 
@@ -285,17 +277,6 @@ class AgentWorker:
             elif action == MessageType.RESULT_ACK.value:
                 # 结果确认
                 logger.debug(f"结果已确认: {data.get('task_id')}")
-
-            elif action == MessageType.CONFIG_UPDATE.value:
-                # 配置更新
-                agent_key = data.get("agent_key")
-                if agent_key == self.agent_key:
-                    new_config = data.get("model_settings")
-                    if new_config:
-                        old_model = self._model_config.get("model_name", "N/A") if self._model_config else "N/A"
-                        new_model = new_config.get("model_name", "N/A")
-                        logger.info(f"收到配置更新: {old_model} -> {new_model}")
-                        await self._on_config_update(new_config)
 
             else:
                 logger.warning(f"未知消息类型: {action}")
@@ -347,20 +328,9 @@ class AgentWorker:
         """
         注册成功后的钩子方法
 
-        子类可以覆盖此方法，在收到平台配置后进行初始化
+        子类可以覆盖此方法，在注册成功后进行初始化
         """
         pass
-
-    async def _on_config_update(self, new_config: dict):
-        """
-        配置更新钩子方法
-
-        子类可以覆盖此方法来处理运行时配置更新
-
-        Args:
-            new_config: 新的模型配置字典
-        """
-        self._model_config = new_config
 
     async def _execute_task_handlers(self, task_content: str) -> str:
         """执行任务处理器"""

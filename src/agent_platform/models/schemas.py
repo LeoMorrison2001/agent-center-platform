@@ -28,13 +28,6 @@ class AgentServiceCreate(BaseModel):
     type: str = Field(..., description="智能体类型")
     description: str = Field(..., description="智能体能力描述")
 
-    # 模型配置（必填字段）
-    model_name: str = Field(..., description="模型名称，如 gemini-2.5-flash")
-    model_provider: str = Field(..., description="模型提供商：google、openai、zhipu 等")
-    api_key: str = Field(..., min_length=1, description="API Key（必填）")
-    temperature: float = Field(..., ge=0, le=1, description="温度参数（0-1，越低越确定）")
-    max_tokens: int = Field(..., ge=1024, le=128000, description="最大输出 tokens")
-
 
 class AgentServiceResponse(BaseModel):
     """智能体服务响应模型"""

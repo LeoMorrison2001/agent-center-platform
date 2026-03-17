@@ -22,12 +22,6 @@ export interface AgentService {
   description: string
   created_at: string
   working_count: number
-  // 模型配置
-  model_name: string
-  model_provider: string
-  api_key: string
-  temperature: number
-  max_tokens: number
 }
 
 // 创建服务请求
@@ -36,12 +30,6 @@ export interface CreateServiceRequest {
   name: string
   type: string
   description: string
-  // 模型配置
-  model_name: string
-  model_provider: string
-  api_key: string
-  temperature: number
-  max_tokens: number
 }
 
 // 工具描述接口

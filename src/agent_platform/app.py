@@ -142,12 +142,7 @@ async def create_service(
         agent_key=service_data.agent_key,
         name=service_data.name,
         type=service_data.type,
-        description=service_data.description,
-        model_name=service_data.model_name,
-        model_provider=service_data.model_provider,
-        api_key=service_data.api_key,
-        temperature=service_data.temperature,
-        max_tokens=service_data.max_tokens
+        description=service_data.description
     )
 
     logger.info(f"创建服务: {service.agent_key} - {service.name}")
@@ -170,12 +165,7 @@ async def update_service(
         agent_key=agent_key,
         name=service_data.name,
         type=service_data.type,
-        description=service_data.description,
-        model_name=service_data.model_name,
-        model_provider=service_data.model_provider,
-        api_key=service_data.api_key,
-        temperature=service_data.temperature,
-        max_tokens=service_data.max_tokens
+        description=service_data.description
     )
 
     if not service:
@@ -185,24 +175,6 @@ async def update_service(
         )
 
     logger.info(f"更新服务: {service.agent_key} - {service.name}")
-
-    # 构建配置更新消息（不提供默认值）
-    config_update = {
-        "action": "config_update",
-        "agent_key": agent_key,
-        "model_settings": {
-            "model_name": service.model_name,
-            "model_provider": service.model_provider,
-            "api_key": service.api_key,
-            "temperature": service.temperature if service.temperature is not None else 0.0,
-            "max_tokens": service.max_tokens if service.max_tokens is not None else 65536,
-        }
-    }
-
-    # 向所有活跃实例推送配置更新
-    count = await connection_pool.broadcast_to_service(agent_key, config_update)
-    logger.info(f"配置更新已推送到 {count} 个实例")
-
     return AgentServiceCRUD.to_response(service)
 
 

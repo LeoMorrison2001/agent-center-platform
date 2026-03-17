@@ -1,9 +1,16 @@
 [project]
-name = "sunday-workers"
+name = "agent-platform-workers"
 version = "0.1.0"
-description = "星期日子智能体集合"
+description = "智能体平台子智能体集合"
 requires-python = ">=3.12"
-dependencies = []
+dependencies = [
+    "python-dotenv>=1.0.0",
+    "websockets>=16.0",
+    "requests>=2.31.0",
+    "langchain>=1.2.12",
+    "langchain-google-genai>=4.2.1",
+    "pydantic>=2.12.5",
+]
 
 [build-system]
 requires = ["hatchling"]

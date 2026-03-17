@@ -125,55 +125,6 @@
             :maxlength="500"
           />
         </t-form-item>
-
-        <!-- 模型配置 -->
-        <t-divider content="模型配置" />
-
-        <t-form-item label="模型名称" name="model_name">
-          <t-input
-            v-model="formData.model_name"
-            placeholder="gemini-2.5-flash"
-          />
-        </t-form-item>
-
-        <t-form-item label="模型提供商" name="model_provider">
-          <t-select
-            v-model="formData.model_provider"
-            placeholder="请选择"
-          >
-            <t-option value="google" label="Google" />
-            <t-option value="openai" label="OpenAI" />
-            <t-option value="zhipu" label="智谱" />
-          </t-select>
-        </t-form-item>
-
-        <t-form-item label="API Key" name="api_key">
-          <t-input
-            v-model="formData.api_key"
-            placeholder="请输入 API Key"
-            type="password"
-          />
-        </t-form-item>
-
-        <t-form-item label="温度参数" name="temperature">
-          <t-slider
-            v-model="formData.temperature"
-            :min="0"
-            :max="1"
-            :step="0.1"
-            :marks="{0: '确定', 0.5: '平衡', 1: '创意'}"
-          />
-        </t-form-item>
-
-        <t-form-item label="最大 Tokens" name="max_tokens">
-          <t-input-number
-            v-model="formData.max_tokens"
-            :min="1024"
-            :max="128000"
-            :step="1024"
-            placeholder="65536"
-          />
-        </t-form-item>
       </t-form>
     </t-dialog>
 
@@ -248,13 +199,7 @@ const formData = ref({
   agent_key: '',
   name: '',
   type: '',
-  description: '',
-  // 模型配置
-  model_name: 'gemini-2.5-flash',
-  model_provider: 'google',
-  api_key: '',
-  temperature: 0,
-  max_tokens: 65536
+  description: ''
 })
 
 // 测试相关状态
@@ -279,19 +224,7 @@ const rules = {
   ],
   name: [{ required: true, message: '请输入服务名称', type: 'error' }],
   type: [{ required: true, message: '请选择服务类型', type: 'error' }],
-  description: [{ required: true, message: '请输入能力描述', type: 'error' }],
-  // 模型配置验证（必填字段）
-  model_name: [
-    { required: true, message: '请输入模型名称', type: 'error' },
-    { min: 1, message: '模型名称不能为空', type: 'error' }
-  ],
-  model_provider: [{ required: true, message: '请选择模型提供商', type: 'error' }],
-  api_key: [
-    { required: true, message: '请输入 API Key', type: 'error' },
-    { min: 1, message: 'API Key 不能为空', type: 'error' }
-  ],
-  temperature: [{ required: true, message: '请设置温度参数', type: 'error' }],
-  max_tokens: [{ required: true, message: '请设置最大 Tokens', type: 'error' }]
+  description: [{ required: true, message: '请输入能力描述', type: 'error' }]
 }
 
 // 失焦点校验智能体KEY
@@ -369,13 +302,7 @@ const resetForm = () => {
     agent_key: '',
     name: '',
     type: '',
-    description: '',
-    // 模型配置
-    model_name: 'gemini-2.5-flash',
-    model_provider: 'google',
-    api_key: '',
-    temperature: 0,
-    max_tokens: 65536
+    description: ''
   }
 }
 
@@ -385,13 +312,7 @@ const handleEdit = (service: AgentService) => {
     agent_key: service.agent_key,
     name: service.name,
     type: service.type,
-    description: service.description,
-    // 模型配置
-    model_name: service.model_name || 'gemini-2.5-flash',
-    model_provider: service.model_provider || 'google',
-    api_key: service.api_key || '',
-    temperature: service.temperature ?? 0,
-    max_tokens: service.max_tokens ?? 65536
+    description: service.description
   }
   showCreateDialog.value = true
 }

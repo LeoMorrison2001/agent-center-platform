@@ -5,7 +5,7 @@ from datetime import datetime
 from typing import List, Optional
 from sqlalchemy.orm import Session
 
-from .models import AgentServiceDB, TaskLogDB, SundayModelConfigDB
+from .models import AgentServiceDB, TaskLogDB
 
 
 class AgentServiceCRUD:
@@ -17,12 +17,7 @@ class AgentServiceCRUD:
         agent_key: str,
         name: str,
         type: str,
-        description: str,
-        model_name: str = None,
-        model_provider: str = None,
-        api_key: str = None,
-        temperature: float = 0.0,
-        max_tokens: int = 65536
+        description: str
     ) -> AgentServiceDB:
         """创建新的智能体服务"""
         db_service = AgentServiceDB(
@@ -30,13 +25,7 @@ class AgentServiceCRUD:
             name=name,
             type=type,
             description=description,
-            created_at=datetime.utcnow(),
-            # 模型配置
-            model_name=model_name,
-            model_provider=model_provider,
-            api_key=api_key,
-            temperature=temperature,
-            max_tokens=max_tokens
+            created_at=datetime.utcnow()
         )
         db.add(db_service)
         db.commit()
@@ -73,12 +62,7 @@ class AgentServiceCRUD:
         agent_key: str,
         name: str,
         type: str,
-        description: str,
-        model_name: str = None,
-        model_provider: str = None,
-        api_key: str = None,
-        temperature: float = None,
-        max_tokens: int = None
+        description: str
     ) -> Optional[AgentServiceDB]:
         """更新服务信息（不修改 agent_key）"""
         service = db.query(AgentServiceDB).filter(
@@ -88,17 +72,6 @@ class AgentServiceCRUD:
             service.name = name
             service.type = type
             service.description = description
-            # 模型配置（如果提供了则更新）
-            if model_name is not None:
-                service.model_name = model_name
-            if model_provider is not None:
-                service.model_provider = model_provider
-            if api_key is not None:
-                service.api_key = api_key
-            if temperature is not None:
-                service.temperature = temperature
-            if max_tokens is not None:
-                service.max_tokens = max_tokens
             db.commit()
             db.refresh(service)
             return service
@@ -150,13 +123,7 @@ class AgentServiceCRUD:
             "type": service.type,
             "description": service.description,
             "created_at": service.created_at,
-            "working_count": service.working_count,
-            # 模型配置（不提供默认值）
-            "model_name": service.model_name,
-            "model_provider": service.model_provider,
-            "api_key": service.api_key,
-            "temperature": service.temperature if service.temperature is not None else 0.0,
-            "max_tokens": service.max_tokens if service.max_tokens is not None else 65536,
+            "working_count": service.working_count
         }
 
 
@@ -300,158 +267,4 @@ class TaskLogCRUD:
             "started_at": log.started_at,
             "completed_at": log.completed_at,
             "duration_ms": log.duration_ms
-        }
-
-
-class SundayModelConfigCRUD:
-    """Sunday 多模型配置 CRUD 操作类"""
-
-    @staticmethod
-    def get_all_configs(db: Session) -> List[SundayModelConfigDB]:
-        """获取所有配置（按默认优先，然后按创建时间倒序）"""
-        return db.query(SundayModelConfigDB)\
-            .order_by(SundayModelConfigDB.is_default.desc(),
-                     SundayModelConfigDB.created_at.desc())\
-            .all()
-
-    @staticmethod
-    def get_default_config(db: Session) -> Optional[SundayModelConfigDB]:
-        """获取默认配置"""
-        return db.query(SundayModelConfigDB)\
-            .filter(SundayModelConfigDB.is_default == True)\
-            .first()
-
-    @staticmethod
-    def get_by_key(db: Session, config_key: str) -> Optional[SundayModelConfigDB]:
-        """根据 config_key 获取配置"""
-        return db.query(SundayModelConfigDB)\
-            .filter(SundayModelConfigDB.config_key == config_key)\
-            .first()
-
-    @staticmethod
-    def create_config(
-        db: Session,
-        name: str,
-        model_name: str,
-        model_provider: str,
-        api_key: str,
-        temperature: float = 0.0,
-        max_tokens: int = 65536,
-        config_key: str = None,
-        is_default: bool = False
-    ) -> SundayModelConfigDB:
-        """创建新配置"""
-        import uuid
-
-        if config_key is None:
-            config_key = f"config_{uuid.uuid4().hex[:8]}"
-
-        # 验证 config_key 唯一性
-        existing = SundayModelConfigCRUD.get_by_key(db, config_key)
-        if existing:
-            raise ValueError(f"config_key '{config_key}' 已存在")
-
-        # 如果设置为默认，先清除其他默认标记
-        if is_default:
-            db.query(SundayModelConfigDB)\
-                .filter(SundayModelConfigDB.is_default == True)\
-                .update({"is_default": False})
-
-        config = SundayModelConfigDB(
-            config_key=config_key,
-            name=name,
-            model_name=model_name,
-            model_provider=model_provider,
-            api_key=api_key,
-            temperature=temperature,
-            max_tokens=max_tokens,
-            is_default=is_default,
-            created_at=datetime.utcnow(),
-            updated_at=datetime.utcnow()
-        )
-        db.add(config)
-        db.commit()
-        db.refresh(config)
-        return config
-
-    @staticmethod
-    def update_config(
-        db: Session,
-        config_key: str,
-        name: str = None,
-        model_name: str = None,
-        model_provider: str = None,
-        api_key: str = None,
-        temperature: float = None,
-        max_tokens: int = None
-    ) -> Optional[SundayModelConfigDB]:
-        """更新配置"""
-        config = SundayModelConfigCRUD.get_by_key(db, config_key)
-        if not config:
-            return None
-
-        if name is not None:
-            config.name = name
-        if model_name is not None:
-            config.model_name = model_name
-        if model_provider is not None:
-            config.model_provider = model_provider
-        if api_key is not None:
-            config.api_key = api_key
-        if temperature is not None:
-            config.temperature = temperature
-        if max_tokens is not None:
-            config.max_tokens = max_tokens
-
-        config.updated_at = datetime.utcnow()
-        db.commit()
-        db.refresh(config)
-        return config
-
-    @staticmethod
-    def delete_config(db: Session, config_key: str) -> bool:
-        """删除配置（不能删除默认配置）"""
-        config = SundayModelConfigCRUD.get_by_key(db, config_key)
-        if not config:
-            return False
-
-        if config.is_default:
-            raise ValueError("不能删除默认配置，请先设置其他配置为默认")
-
-        db.delete(config)
-        db.commit()
-        return True
-
-    @staticmethod
-    def set_default(db: Session, config_key: str) -> Optional[SundayModelConfigDB]:
-        """设置默认配置（事务操作）"""
-        # 先清除所有默认标记
-        db.query(SundayModelConfigDB)\
-            .filter(SundayModelConfigDB.is_default == True)\
-            .update({"is_default": False})
-
-        # 设置新的默认
-        config = SundayModelConfigCRUD.get_by_key(db, config_key)
-        if config:
-            config.is_default = True
-            config.updated_at = datetime.utcnow()
-            db.commit()
-            db.refresh(config)
-
-        return config
-
-    @staticmethod
-    def to_response(config: SundayModelConfigDB) -> dict:
-        """转换为响应字典"""
-        return {
-            "config_key": config.config_key,
-            "name": config.name,
-            "model_name": config.model_name,
-            "model_provider": config.model_provider,
-            "api_key": config.api_key,
-            "temperature": config.temperature,
-            "max_tokens": config.max_tokens,
-            "is_default": config.is_default,
-            "created_at": config.created_at.isoformat() if config.created_at else None,
-            "updated_at": config.updated_at.isoformat() if config.updated_at else None
         }

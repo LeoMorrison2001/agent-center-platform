@@ -20,13 +20,6 @@ class AgentServiceDB(Base):
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     working_count = Column(Integer, default=0, nullable=False)
 
-    # 模型配置 - 必须由用户配置
-    model_name = Column(String, nullable=True)
-    model_provider = Column(String, nullable=True)
-    api_key = Column(String, nullable=True)
-    temperature = Column(Float, default=0.0, nullable=True)
-    max_tokens = Column(Integer, default=65536, nullable=True)
-
 
 class TaskLogDB(Base):
     """任务执行日志数据库模型"""
@@ -44,30 +37,3 @@ class TaskLogDB(Base):
     started_at = Column(DateTime)
     completed_at = Column(DateTime)
     duration_ms = Column(Integer)
-
-
-class SundayModelConfigDB(Base):
-    """Sunday 多模型配置表"""
-    __tablename__ = "sunday_model_configs"
-
-    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
-    config_key = Column(String, unique=True, nullable=False, index=True)
-    name = Column(String, nullable=False)  # 配置显示名称
-
-    # 模型配置
-    model_name = Column(String, nullable=False)
-    model_provider = Column(String, nullable=False)
-    api_key = Column(String, nullable=False)
-    temperature = Column(Float, default=0.0, nullable=False)
-    max_tokens = Column(Integer, default=65536, nullable=False)
-
-    # 默认标记（只能有一个为 True）
-    is_default = Column(Boolean, default=False, nullable=False)
-
-    # 时间戳
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
-
-    __table_args__ = (
-        Index('ix_sunday_model_configs_is_default', 'is_default'),
-    )

@@ -147,31 +147,16 @@ async def handle_register(
     db: Session = next(get_db())
     try:
         AgentServiceCRUD.increment_working_count(db, agent_key)
-
-        # 获取服务的模型配置
-        service = AgentServiceCRUD.get_service_by_key(db, agent_key)
     finally:
         db.close()
 
-    # 构建模型配置（不提供默认值，如果未配置则返回 None）
-    model_config = None
-    if service:
-        model_config = {
-            "model_name": service.model_name,
-            "model_provider": service.model_provider,
-            "api_key": service.api_key,
-            "temperature": service.temperature if service.temperature is not None else 0.0,
-            "max_tokens": service.max_tokens if service.max_tokens is not None else 65536,
-        }
-
-    # 返回确认消息（包含模型配置）
+    # 返回确认消息
     await websocket.send_json({
         "action": "registered",
         "agent_key": agent_key,
         "instance_id": instance_id,
         "heartbeat_interval": 30,
-        "message": "注册成功",
-        "model_settings": model_config
+        "message": "注册成功"
     })
 
     # 推送监控事件
