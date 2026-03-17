@@ -30,7 +30,7 @@
             </template>
             执行日志
           </t-menu-item>
-          <t-menu-item value="api-docs">
+          <t-menu-item value="docs">
             <template #icon>
               <t-icon name="book-open" />
             </template>
@@ -54,8 +54,10 @@ const router = useRouter()
 const route = useRoute()
 
 const activeMenu = computed(() => {
-  const path = route.path?.replace('/', '') || 'dashboard'
-  return path
+  const path = route.path
+  if (!path) return 'dashboard'
+  // 移除开头的 /
+  return path.substring(1)
 })
 
 const handleMenuChange = (value: string) => {

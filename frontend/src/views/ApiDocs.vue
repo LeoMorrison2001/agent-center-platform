@@ -1,8 +1,11 @@
 <template>
   <div class="api-docs">
-    <t-card title="对外 API 接口文档" class="docs-card">
-      <template #actions>
-        <t-tag theme="success" variant="light">v0.2.0</t-tag>
+    <t-card :bordered="false">
+      <template #header>
+        <div class="page-header">
+          <h3>对外 API 接口文档</h3>
+          <t-tag theme="success" variant="light">v0.2.0</t-tag>
+        </div>
       </template>
 
       <!-- 接口列表 -->
@@ -38,12 +41,12 @@
 
             <div class="api-section">
               <h4>在线测试</h4>
-              <t-form :data="testForm" @submit="handleDispatchTest">
-                <t-form-item label="智能体Key" name="agent_key">
+              <t-form @submit.prevent="handleDispatchTest">
+                <t-form-item label="智能体Key">
                   <t-input v-model="testForm.agent_key" placeholder="weather" />
                 </t-form-item>
-                <t-form-item label="任务内容" name="task_content">
-                  <t-textarea v-model="testForm.task_content" placeholder="查询北京天气" :autosize="{ minRows: 2, maxRows: 4 }" />
+                <t-form-item label="任务内容">
+                  <t-textarea v-model="testForm.task_content" placeholder="查询北京天气" />
                 </t-form-item>
                 <t-form-item>
                   <t-button theme="primary" type="submit" :loading="testLoading">发送测试</t-button>
@@ -235,17 +238,22 @@ const handleQueryTest = async () => {
 
 <style scoped>
 .api-docs {
-  height: 100%;
+  max-width: 1400px;
 }
 
-.docs-card {
-  height: 100%;
-  overflow: hidden;
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
 }
 
-.docs-card :deep(.t-card__body) {
-  height: 100%;
-  overflow-y: auto;
+.page-header h3 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 32px;
+  min-height: 32px;
 }
 
 .api-list {
@@ -273,7 +281,7 @@ const handleQueryTest = async () => {
   font-family: 'Monaco', 'Consolas', monospace;
   font-size: 14px;
   color: var(--td-text-color-primary);
-  background: var(--td-bg-color-container);
+  background: var(--td-bg-color-page);
   padding: 4px 12px;
   border-radius: 4px;
   flex: 1;
@@ -311,7 +319,7 @@ const handleQueryTest = async () => {
 }
 
 .code-block {
-  background: var(--td-bg-color-container);
+  background: var(--td-bg-color-page);
   border: 1px solid var(--td-component-border);
   border-radius: var(--td-radius-default);
   padding: 16px;
