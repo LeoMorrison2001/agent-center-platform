@@ -20,9 +20,8 @@ from common.mq.result_consumer import result_consumer
 from common.mq.heartbeat_consumer import heartbeat_consumer
 
 # 导入路由
-from agent_platform.app import router as platform_router
-from agent_platform.ws import platform_ws_router
-from agent_platform.websocket.monitor import monitor_manager
+from agent_platform.api import router as platform_router
+from agent_platform.websocket import platform_ws_router, monitor_manager
 
 logger = logging.getLogger(__name__)
 

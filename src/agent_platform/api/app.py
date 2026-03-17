@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 
 from common.database import get_db, AgentServiceCRUD, TaskLogCRUD, TaskLogDB
 from agent_platform.models import (
-    AgentServiceCreate, AgentServiceResponse, ToolDescription
+    AgentServiceCreate, AgentServiceResponse
 )
 from common.mq.heartbeat_consumer import heartbeat_consumer
 from agent_platform.websocket.monitor import monitor_manager
@@ -28,48 +28,16 @@ logger = logging.getLogger(__name__)
 async def root():
     """平台信息接口"""
     return {
-        "name": "星期日智能体服务平台",
-        "version": "0.1.0",
+        "name": "智能体服务平台",
+        "version": "0.2.0",
         "status": "running",
         "endpoints": {
             "api_docs": "/docs",
-            "api_tools": "/api/platform/tools",
-            "api_services": "/api/platform/services",
-            "websocket": "/ws/platform/agent"
+            "dispatch": "/api/platform/dispatch",
+            "task_result": "/api/platform/logs/{task_id}",
+            "websocket": "/ws/platform/monitor"
         }
     }
-
-
-@router.get("/tools", response_model=List[ToolDescription], tags=["Platform"])
-async def get_available_tools(db: Session = Depends(get_db)):
-    """
-    获取可用工具列表
-
-    返回当前所有在线的智能体服务及其描述
-    """
-    services = AgentServiceCRUD.get_all_services(db)
-    active_instances = heartbeat_consumer.get_active_instances()
-
-    # 获取有活跃实例的服务
-    active_agent_keys = set()
-    for instance_id in active_instances:
-        # 从 heartbeat_consumer 获取 agent_key 需要访问内部状态
-        # 这里简化处理：假设所有已注册的服务都可用
-        # 实际活跃状态由心跳消费者维护
-        pass
-
-    # 对于 MQ 模式，返回所有已注册的服务（由消费者决定是否可用）
-    tools = []
-    for service in services:
-        tools.append(ToolDescription(
-            agent_key=service.agent_key,
-            name=service.name,
-            description=service.description,
-            type=service.type
-        ))
-
-    logger.info(f"返回工具列表: {len(tools)} 个")
-    return tools
 
 
 @router.get("/services", tags=["Platform"])
@@ -190,16 +158,7 @@ async def update_service(
 async def delete_service(agent_key: str, db: Session = Depends(get_db)):
     """
     删除智能体服务
-
-    注意：如果有活跃实例连接，建议先断开连接
     """
-    active_count = connection_pool.get_service_instance_count(agent_key)
-    if active_count > 0:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=f"服务仍有 {active_count} 个活跃实例，请先断开连接"
-        )
-
     success = AgentServiceCRUD.delete_service(db, agent_key)
     if not success:
         raise HTTPException(
@@ -275,23 +234,30 @@ async def get_task_stats_summary(db: Session = Depends(get_db)):
     return TaskLogCRUD.get_task_stats(db)
 
 
-# ==================== 任务调度接口 (供主控AI调用) ====================
+# ==================== 任务调度接口 (供外部调用) ====================
 
 @router.post("/dispatch", tags=["Platform"])
 async def dispatch_task(task_request: dict, db: Session = Depends(get_db)):
     """
-    任务调度接口（RabbitMQ 版本）
+    任务调度接口
 
-    将任务发布到 RabbitMQ 队列，由智能体异步消费
+    发送任务到智能体服务，平台自动生成 task_id
+
+    Body:
+        agent_key: 智能体服务标识
+        task_content: 任务内容
+
+    Returns:
+        task_id: 任务ID（平台生成）
+        status: queued
     """
     agent_key = task_request.get("agent_key")
-    task_id = task_request.get("task_id")
     task_content = task_request.get("task_content")
 
-    if not all([agent_key, task_id, task_content]):
+    if not all([agent_key, task_content]):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="缺少必要参数: agent_key, task_id, task_content"
+            detail="缺少必要参数: agent_key, task_content"
         )
 
     # 验证服务是否存在
@@ -301,6 +267,9 @@ async def dispatch_task(task_request: dict, db: Session = Depends(get_db)):
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"服务 '{agent_key}' 不存在"
         )
+
+    # 平台自动生成任务ID
+    task_id = f"task_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}_{uuid4().hex[:8]}"
 
     # 创建任务日志
     TaskLogCRUD.create_task_log(
@@ -386,8 +355,6 @@ async def test_service(
 
     Body:
         task_content: 测试任务内容（可选，默认为"测试任务"）
-
-    注意：任务将发布到队列，由任何可用实例消费
     """
     task_content = test_request.get("task_content", "测试任务")
 
@@ -399,8 +366,8 @@ async def test_service(
             detail=f"服务 '{agent_key}' 不存在"
         )
 
-    # 生成测试任务ID
-    task_id = f"test_{uuid4().hex[:8]}"
+    # 平台自动生成测试任务ID
+    task_id = f"test_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}_{uuid4().hex[:8]}"
 
     # 创建任务日志
     TaskLogCRUD.create_task_log(

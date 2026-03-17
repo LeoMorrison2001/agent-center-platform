@@ -30,6 +30,12 @@
             </template>
             执行日志
           </t-menu-item>
+          <t-menu-item value="api-docs">
+            <template #icon>
+              <t-icon name="book-open" />
+            </template>
+            API 文档
+          </t-menu-item>
         </t-menu>
       </t-aside>
 
