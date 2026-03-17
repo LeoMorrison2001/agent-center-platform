@@ -1,0 +1,15 @@
+[project]
+name = "sunday-sdk"
+version = "0.1.0"
+description = "星期日智能体SDK - 供子智能体连接平台使用"
+requires-python = ">=3.12"
+dependencies = [
+    "websockets>=12.0",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["."]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"

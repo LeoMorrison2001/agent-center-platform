@@ -1,0 +1,10 @@
+[project]
+name = "sunday-workers"
+version = "0.1.0"
+description = "星期日子智能体集合"
+requires-python = ">=3.12"
+dependencies = []
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"

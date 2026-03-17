@@ -1,0 +1,45 @@
+[project]
+name = "agent-center-platform"
+version = "0.1.0"
+description = "智能体服务平台 - 智能体注册、心跳管理与任务调度"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    # 核心框架与 Web 服务
+    "fastapi>=0.135.1",
+    "uvicorn>=0.41.0",
+    "pydantic>=2.12.5",
+    "python-dotenv>=1.2.2",
+    "sse-starlette>=3.3.2",
+    "websockets>=16.0",
+
+    # 数据库与存储
+    "sqlalchemy>=2.0.48",
+    "langchain-chroma>=1.1.0",
+
+    # LangChain 生态核心
+    "langchain>=1.2.12",
+    "langchain-core>=1.2.18",
+    "langchain-community>=0.4.1",
+    "langchain-text-splitters>=1.1.1",
+    "langserve>=0.3.3",
+
+    # LangGraph (多智能体工作流)
+    "langgraph>=1.1.1",
+    "langgraph-checkpoint-sqlite>=3.0.3",
+
+    # 模型集成与工具
+    "langchain-google-genai>=4.2.1",
+    "langchain-openai>=1.1.11",
+    "pypdf>=6.8.0",
+
+    # 遗留/特定组件 (根据项目需求保留)
+    "langchain-classic>=1.0.2",
+]
+
+[tool.uv.workspace]
+members = [
+    "agent_platform",
+    "sdk",
+    "workers"
+]
