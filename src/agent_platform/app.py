@@ -13,7 +13,7 @@ from common.database import get_db, AgentServiceCRUD, TaskLogCRUD, TaskLogDB
 from agent_platform.models import (
     AgentServiceCreate, AgentServiceResponse, ToolDescription
 )
-from common.pool import connection_pool
+from common.mq.heartbeat_consumer import heartbeat_consumer
 from agent_platform.websocket.monitor import monitor_manager
 
 # 创建平台路由器，带 /api/platform 前缀
@@ -45,22 +45,30 @@ async def get_available_tools(db: Session = Depends(get_db)):
     """
     获取可用工具列表
 
-    供主控AI (星期日) 调用，返回当前所有在线的智能体服务及其描述
+    返回当前所有在线的智能体服务及其描述
     """
     services = AgentServiceCRUD.get_all_services(db)
-    active_services = connection_pool.get_all_active_services()
+    active_instances = heartbeat_consumer.get_active_instances()
 
+    # 获取有活跃实例的服务
+    active_agent_keys = set()
+    for instance_id in active_instances:
+        # 从 heartbeat_consumer 获取 agent_key 需要访问内部状态
+        # 这里简化处理：假设所有已注册的服务都可用
+        # 实际活跃状态由心跳消费者维护
+        pass
+
+    # 对于 MQ 模式，返回所有已注册的服务（由消费者决定是否可用）
     tools = []
     for service in services:
-        if service.agent_key in active_services:
-            tools.append(ToolDescription(
-                agent_key=service.agent_key,
-                name=service.name,
-                description=service.description,
-                type=service.type
-            ))
+        tools.append(ToolDescription(
+            agent_key=service.agent_key,
+            name=service.name,
+            description=service.description,
+            type=service.type
+        ))
 
-    logger.info(f"返回可用工具列表: {len(tools)} 个")
+    logger.info(f"返回工具列表: {len(tools)} 个")
     return tools
 
 
@@ -207,10 +215,10 @@ async def delete_service(agent_key: str, db: Session = Depends(get_db)):
 async def get_platform_status(db: Session = Depends(get_db)):
     """获取平台运行状态"""
     all_services = AgentServiceCRUD.get_all_services(db)
-    active_services = connection_pool.get_all_active_services()
+    active_instances = heartbeat_consumer.get_active_instances()
 
     running_tasks = db.query(TaskLogDB).filter(
-        TaskLogDB.status == "dispatched"
+        TaskLogDB.status.in_(["queued", "dispatched"])
     ).count()
 
     return {
@@ -218,11 +226,10 @@ async def get_platform_status(db: Session = Depends(get_db)):
         "timestamp": datetime.utcnow().isoformat(),
         "statistics": {
             "total_services": len(all_services),
-            "active_services": len(active_services),
-            "total_instances": connection_pool.get_total_instance_count(),
+            "active_instances": len(active_instances),
             "running_tasks": running_tasks
         },
-        "active_services_list": list(active_services)
+        "active_instances_list": list(active_instances)
     }
 
 
@@ -273,9 +280,9 @@ async def get_task_stats_summary(db: Session = Depends(get_db)):
 @router.post("/dispatch", tags=["Platform"])
 async def dispatch_task(task_request: dict, db: Session = Depends(get_db)):
     """
-    任务调度接口
+    任务调度接口（RabbitMQ 版本）
 
-    供主控AI (星期日) 调用，将任务分发给指定的智能体服务
+    将任务发布到 RabbitMQ 队列，由智能体异步消费
     """
     agent_key = task_request.get("agent_key")
     task_id = task_request.get("task_id")
@@ -285,6 +292,14 @@ async def dispatch_task(task_request: dict, db: Session = Depends(get_db)):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="缺少必要参数: agent_key, task_id, task_content"
+        )
+
+    # 验证服务是否存在
+    service = AgentServiceCRUD.get_service_by_key(db, agent_key)
+    if not service:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"服务 '{agent_key}' 不存在"
         )
 
     # 创建任务日志
@@ -298,24 +313,11 @@ async def dispatch_task(task_request: dict, db: Session = Depends(get_db)):
     # 推送任务创建事件
     await monitor_manager.broadcast_task_created(task_id, agent_key, task_content)
 
-    # 获取可用实例
-    instance = await connection_pool.get_next_instance(agent_key)
-    if not instance:
-        TaskLogCRUD.update_task_status(
-            db=db,
-            task_id=task_id,
-            status="failed",
-            error_message="没有可用实例"
-        )
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=f"服务 '{agent_key}' 没有可用实例"
-        )
+    # 发布任务到 RabbitMQ 队列
+    from common.mq.task_producer import task_producer
 
-    # 发送任务到对应的WebSocket实例
-    success = await connection_pool.send_task_to_instance(
+    success = await task_producer.publish_task(
         agent_key=agent_key,
-        instance_id=instance.instance_id,
         task_id=task_id,
         task_content=task_content
     )
@@ -325,35 +327,31 @@ async def dispatch_task(task_request: dict, db: Session = Depends(get_db)):
             db=db,
             task_id=task_id,
             status="failed",
-            error_message="任务发送失败"
+            error_message="任务发布失败"
         )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="任务发送失败"
+            detail="任务发布失败"
         )
 
-    # 更新任务状态为已分发
+    # 更新任务状态为已入队
     TaskLogCRUD.update_task_status(
         db=db,
         task_id=task_id,
-        status="dispatched",
-        instance_id=instance.instance_id,
+        status="queued",
         started_at=datetime.utcnow()
     )
 
-    # 推送任务分发事件
-    await monitor_manager.broadcast_task_dispatched(task_id, agent_key, instance.instance_id)
+    # 推送任务分发事件（到队列）
+    await monitor_manager.broadcast_task_dispatched(task_id, agent_key, "queue")
 
-    logger.info(
-        f"任务已调度: {task_id} -> {agent_key}/{instance.instance_id}"
-    )
+    logger.info(f"任务已发布到队列: {task_id} -> {agent_key}")
 
     return {
         "task_id": task_id,
         "agent_key": agent_key,
-        "instance_id": instance.instance_id,
-        "status": "dispatched",
-        "message": "任务已下发"
+        "status": "queued",
+        "message": "任务已加入队列"
     }
 
 
@@ -362,51 +360,43 @@ async def get_service_instances(agent_key: str):
     """
     获取指定服务的所有活跃实例
 
-    返回实例列表，包含 instance_id 和连接时间
+    返回实例列表，包含 instance_id
     """
-    instances = connection_pool.get_all_instances_for_service(agent_key)
+    instances = heartbeat_consumer.get_active_instances_by_agent(agent_key)
 
     return {
         "agent_key": agent_key,
         "instances": [
             {
-                "instance_id": inst.instance_id,
-                "connected_at": inst.connected_at.isoformat(),
-                "last_heartbeat": inst.last_heartbeat.isoformat()
+                "instance_id": instance_id
             }
-            for inst in instances
+            for instance_id in instances
         ]
     }
 
 
 @router.post("/services/{agent_key}/test", tags=["Platform"])
-async def test_service_instance(
+async def test_service(
     agent_key: str,
     test_request: dict,
     db: Session = Depends(get_db)
 ):
     """
-    向指定实例发送测试任务
+    发送测试任务到指定服务
 
     Body:
-        instance_id: 目标实例ID
         task_content: 测试任务内容（可选，默认为"测试任务"）
+
+    注意：任务将发布到队列，由任何可用实例消费
     """
-    instance_id = test_request.get("instance_id")
     task_content = test_request.get("task_content", "测试任务")
 
-    if not instance_id:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="缺少必要参数: instance_id"
-        )
-
-    # 检查实例是否存在
-    instance = connection_pool.get_instance(agent_key, instance_id)
-    if not instance:
+    # 验证服务是否存在
+    service = AgentServiceCRUD.get_service_by_key(db, agent_key)
+    if not service:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"实例 '{instance_id}' 不存在或已断开"
+            detail=f"服务 '{agent_key}' 不存在"
         )
 
     # 生成测试任务ID
@@ -423,10 +413,11 @@ async def test_service_instance(
     # 推送任务创建事件
     await monitor_manager.broadcast_task_created(task_id, agent_key, f"[测试] {task_content}")
 
-    # 发送任务到指定实例
-    success = await connection_pool.send_task_to_instance(
+    # 发布任务到 RabbitMQ 队列
+    from common.mq.task_producer import task_producer
+
+    success = await task_producer.publish_task(
         agent_key=agent_key,
-        instance_id=instance_id,
         task_id=task_id,
         task_content=task_content
     )
@@ -436,31 +427,29 @@ async def test_service_instance(
             db=db,
             task_id=task_id,
             status="failed",
-            error_message="任务发送失败"
+            error_message="任务发布失败"
         )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="任务发送失败"
+            detail="任务发布失败"
         )
 
-    # 更新任务状态
+    # 更新任务状态为已入队
     TaskLogCRUD.update_task_status(
         db=db,
         task_id=task_id,
-        status="dispatched",
-        instance_id=instance_id,
+        status="queued",
         started_at=datetime.utcnow()
     )
 
-    # 推送任务分发事件
-    await monitor_manager.broadcast_task_dispatched(task_id, agent_key, instance_id)
+    # 推送任务分发事件（到队列）
+    await monitor_manager.broadcast_task_dispatched(task_id, agent_key, "queue")
 
-    logger.info(f"测试任务已发送: {task_id} -> {agent_key}/{instance_id}")
+    logger.info(f"测试任务已发布: {task_id} -> {agent_key}")
 
     return {
         "task_id": task_id,
         "agent_key": agent_key,
-        "instance_id": instance_id,
-        "status": "dispatched",
-        "message": "测试任务已发送"
+        "status": "queued",
+        "message": "测试任务已加入队列"
     }

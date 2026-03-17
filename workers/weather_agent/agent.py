@@ -217,11 +217,10 @@ def list_supported_cities() -> str:
 # ==========================================
 
 class WeatherAgent:
-    """天气智能体 - 集成 LangChain Agent 和平台连接"""
+    """天气智能体 - 集成 LangChain Agent 和平台连接（MQ 模式）"""
 
-    def __init__(self, agent_key: str = "weather", platform_url: str = "ws://localhost:3150/ws/platform/agent"):
+    def __init__(self, agent_key: str = "weather"):
         self.agent_key = agent_key
-        self.platform_url = platform_url
         self.worker = None
         self.agent_executor = None
         self._model = None
@@ -269,10 +268,10 @@ class WeatherAgent:
 
     def start(self):
         """启动智能体"""
-        # 创建平台连接 worker
+        # 创建平台连接 worker（MQ 模式）
         self.worker = AgentWorker(
             agent_key=self.agent_key,
-            platform_url=self.platform_url
+            mq_url=os.getenv("RABBITMQ_URL", "amqp://guest:guest@localhost:5672/")
         )
 
         # 注册任务处理器
@@ -291,7 +290,7 @@ class WeatherAgent:
         print("=" * 50)
         print(f"🌤️  {self.agent_key} 天气智能体")
         print("-" * 50)
-        print(f"Platform: {self.platform_url}")
+        print(f"Mode:     RabbitMQ")
         print(f"Model:    {MODEL_CONFIG['model_name']}")
         print(f"Tools:    {len(self._tools)}")
         print("=" * 50)

@@ -1,18 +1,44 @@
 """
 智能体服务平台 - FastAPI 统一入口
 """
+import asyncio
 import logging
+import os
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from dotenv import load_dotenv
+
+# 加载 .env 文件
+load_dotenv()
 
 # 导入共有模块
 from common.database import init_db
-from common.pool import connection_pool
+
+# 导入 RabbitMQ 模块
+from common.mq.connection_manager import mq_manager
+from common.mq.result_consumer import result_consumer
+from common.mq.heartbeat_consumer import heartbeat_consumer
 
 # 导入路由
 from agent_platform.app import router as platform_router
 from agent_platform.ws import platform_ws_router
+from agent_platform.websocket.monitor import monitor_manager
+
+logger = logging.getLogger(__name__)
+
+# 导入共有模块
+from common.database import init_db
+
+# 导入 RabbitMQ 模块
+from common.mq.connection_manager import mq_manager
+from common.mq.result_consumer import result_consumer
+from common.mq.heartbeat_consumer import heartbeat_consumer
+
+# 导入路由
+from agent_platform.app import router as platform_router
+from agent_platform.ws import platform_ws_router
+from agent_platform.websocket.monitor import monitor_manager
 
 logger = logging.getLogger(__name__)
 
@@ -35,15 +61,42 @@ async def lifespan(app: FastAPI):
     init_db()
     logger.info("数据库初始化完成")
 
-    # 启动心跳监控
-    await connection_pool.start_heartbeat_monitor()
-    logger.info("心跳监控已启动")
+    # 连接 RabbitMQ
+    await mq_manager.connect()
+    logger.info("RabbitMQ 连接已建立")
+
+    # 设置结果消费者回调（推送监控事件）
+    async def result_callback(result_msg):
+        """结果回调：推送监控事件"""
+        await monitor_manager.broadcast_task_completed(
+            result_msg.task_id,
+            result_msg.agent_key,
+            result_msg.result,
+            result_msg.success
+        )
+
+    result_consumer.set_result_callback(result_callback)
+
+    # 启动结果消费者（后台任务）
+    result_task = asyncio.create_task(result_consumer.start())
+    logger.info("结果消费者已启动")
+
+    # 启动心跳消费者（后台任务）
+    heartbeat_task = asyncio.create_task(heartbeat_consumer.start())
+    logger.info("心跳消费者已启动")
 
     yield
 
     # 关闭时（在 yield 之后，服务器已经停止接受新连接）
     logger.info("正在关闭平台...")
-    await connection_pool.stop_heartbeat_monitor()
+
+    # 停止消费者
+    await result_consumer.stop()
+    await heartbeat_consumer.stop()
+    logger.info("MQ 消费者已停止")
+
+    await mq_manager.disconnect()
+    logger.info("RabbitMQ 连接已关闭")
     logger.info("平台已关闭")
 
 

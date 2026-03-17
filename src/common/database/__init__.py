@@ -1,5 +1,5 @@
 """数据库模块"""
-from .base import init_db, get_db, engine, SessionLocal, Base
+from .base import init_db, get_db, get_db_session, engine, SessionLocal, Base
 from .models import AgentServiceDB, TaskLogDB
 from .crud import AgentServiceCRUD, TaskLogCRUD
 

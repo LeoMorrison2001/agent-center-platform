@@ -35,11 +35,7 @@ dependencies = [
 
     # 遗留/特定组件 (根据项目需求保留)
     "langchain-classic>=1.0.2",
-]
 
-[tool.uv.workspace]
-members = [
-    "agent_platform",
-    "sdk",
-    "workers"
+    # 消息队列
+    "aio-pika>=9.4.0",
 ]
