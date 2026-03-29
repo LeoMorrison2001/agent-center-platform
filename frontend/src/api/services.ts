@@ -40,6 +40,12 @@ export interface ToolDescription {
   type: string
 }
 
+export interface AgentKeyValidationResponse {
+  valid: boolean
+  exists: boolean
+  message: string
+}
+
 // 任务日志接口
 export interface TaskLog {
   id: number
@@ -47,7 +53,7 @@ export interface TaskLog {
   agent_key: string
   instance_id: string | null
   task_content: string
-  status: 'pending' | 'dispatched' | 'completed' | 'failed'
+  status: 'queued' | 'completed' | 'failed'
   result: string | null
   error_message: string | null
   created_at: string
@@ -65,8 +71,25 @@ export interface TaskStats {
   total: number
   completed: number
   failed: number
-  pending: number
+  queued: number
   success_rate: number
+}
+
+export interface DispatchTaskRequest {
+  agent_key: string
+  task_content: string
+}
+
+export interface DispatchTaskResponse {
+  task_id: string
+  agent_key: string
+  status: 'queued'
+  message: string
+}
+
+export interface ServiceInstancesResponse {
+  agent_key: string
+  instances: Array<{ instance_id: string }>
 }
 
 // 日志查询参数
@@ -105,7 +128,7 @@ export const api = {
   },
 
   // 校验智能体KEY是否可用
-  validateAgentKey(agentKey: string): Promise<{ valid: boolean; exists: boolean; message: string }> {
+  validateAgentKey(agentKey: string): Promise<AgentKeyValidationResponse> {
     return request.get(`/api/platform/services/validate/${agentKey}`)
   },
 
@@ -130,13 +153,17 @@ export const api = {
   },
 
   // 获取服务的所有实例
-  getServiceInstances(agentKey: string): Promise<{ agent_key: string; instances: Array<{ instance_id: string; connected_at: string; last_heartbeat: string }> }> {
+  getServiceInstances(agentKey: string): Promise<ServiceInstancesResponse> {
     return request.get(`/api/platform/services/${agentKey}/instances`)
   },
 
-  // 向指定实例发送测试任务
-  testServiceInstance(agentKey: string, data: { instance_id: string; task_content?: string }): Promise<{ task_id: string; agent_key: string; instance_id: string; status: string; message: string }> {
+  // 向指定服务发送测试任务
+  testServiceInstance(agentKey: string, data: { task_content?: string }): Promise<DispatchTaskResponse> {
     return request.post(`/api/platform/services/${agentKey}/test`, data)
+  },
+
+  dispatchTask(data: DispatchTaskRequest): Promise<DispatchTaskResponse> {
+    return request.post('/api/platform/dispatch', data)
   }
 }
 

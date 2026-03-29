@@ -18,8 +18,7 @@
               @change="handleFilter"
             >
               <t-option value="" label="全部状态" />
-              <t-option value="pending" label="待处理" />
-              <t-option value="dispatched" label="已分发" />
+              <t-option value="queued" label="排队中" />
               <t-option value="completed" label="已完成" />
               <t-option value="failed" label="失败" />
             </t-select>
@@ -225,7 +224,7 @@ const stats = ref<TaskStats>({
   total: 0,
   completed: 0,
   failed: 0,
-  pending: 0,
+  queued: 0,
   success_rate: 0
 })
 
@@ -262,8 +261,7 @@ const pagination = computed(() => ({
 
 const getStatusText = (status: string) => {
   const map = {
-    pending: '待处理',
-    dispatched: '已分发',
+    queued: '排队中',
     completed: '已完成',
     failed: '失败'
   }
@@ -272,8 +270,7 @@ const getStatusText = (status: string) => {
 
 const getStatusTheme = (status: string) => {
   const map = {
-    pending: 'default',
-    dispatched: 'warning',
+    queued: 'warning',
     completed: 'success',
     failed: 'danger'
   }
@@ -344,7 +341,7 @@ const showRequestResponse = (log: TaskLog) => {
 const { on: onMonitorEvent, off: offMonitorEvent } = useMonitorWebSocket()
 
 let unmonitorTaskCreated: (() => void) | null = null
-let unmonitorTaskDispatched: (() => void) | null = null
+let unmonitorTaskQueued: (() => void) | null = null
 let unmonitorTaskCompleted: (() => void) | null = null
 let unmonitorTaskFailed: (() => void) | null = null
 
@@ -359,8 +356,8 @@ onMounted(async () => {
   })
 
   // 监听任务分发事件
-  unmonitorTaskDispatched = onMonitorEvent('task.dispatched', async () => {
-    console.log('[Logs] 任务分发，刷新日志和统计')
+  unmonitorTaskQueued = onMonitorEvent('task.queued', async () => {
+    console.log('[Logs] 任务入队，刷新日志和统计')
     await fetchLogs()
   })
 
@@ -380,7 +377,7 @@ onMounted(async () => {
 onUnmounted(() => {
   // 清理事件监听
   if (unmonitorTaskCreated) unmonitorTaskCreated()
-  if (unmonitorTaskDispatched) unmonitorTaskDispatched()
+  if (unmonitorTaskQueued) unmonitorTaskQueued()
   if (unmonitorTaskCompleted) unmonitorTaskCompleted()
   if (unmonitorTaskFailed) unmonitorTaskFailed()
 })

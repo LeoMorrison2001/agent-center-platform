@@ -54,11 +54,14 @@ async def lifespan(app: FastAPI):
         await monitor_manager.broadcast_task_completed(
             result_msg.task_id,
             result_msg.agent_key,
-            result_msg.result,
             result_msg.success
         )
 
     result_consumer.set_result_callback(result_callback)
+    heartbeat_consumer.set_instance_callbacks(
+        connected_callback=monitor_manager.broadcast_instance_connected,
+        disconnected_callback=monitor_manager.broadcast_instance_disconnected
+    )
 
     # 启动结果消费者（后台任务）
     result_task = asyncio.create_task(result_consumer.start())

@@ -2,10 +2,17 @@
 SQLAlchemy ORM 模型
 """
 from datetime import datetime
-from sqlalchemy import Column, Integer, String, DateTime, Text, Float, Boolean, Index
+from sqlalchemy import Column, Integer, String, DateTime, Text
 from sqlalchemy.ext.declarative import declarative_base
 
 Base = declarative_base()
+
+
+class TaskStatus:
+    """任务状态常量。"""
+    QUEUED = "queued"
+    COMPLETED = "completed"
+    FAILED = "failed"
 
 
 class AgentServiceDB(Base):
@@ -30,7 +37,7 @@ class TaskLogDB(Base):
     agent_key = Column(String, nullable=False, index=True)
     instance_id = Column(String)
     task_content = Column(Text)
-    status = Column(String, default="pending")  # pending, dispatched, completed, failed
+    status = Column(String, default=TaskStatus.QUEUED)  # queued, completed, failed
     result = Column(Text)
     error_message = Column(Text)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)

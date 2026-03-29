@@ -36,6 +36,13 @@ class HeartbeatConsumer:
 
         # 清理任务
         self._cleanup_task: Optional[asyncio.Task] = None
+        self._instance_connected_callback = None
+        self._instance_disconnected_callback = None
+
+    def set_instance_callbacks(self, connected_callback=None, disconnected_callback=None):
+        """设置实例上下线回调。"""
+        self._instance_connected_callback = connected_callback
+        self._instance_disconnected_callback = disconnected_callback
 
     async def start(self):
         """启动心跳消费者"""
@@ -116,12 +123,19 @@ class HeartbeatConsumer:
                 # 解析消息
                 data = json.loads(message.body.decode())
                 heartbeat_msg = HeartbeatMessage(**data)
+                is_new_instance = heartbeat_msg.instance_id not in self._active_instances
 
                 # 更新活跃实例记录
                 self._active_instances[heartbeat_msg.instance_id] = (
                     heartbeat_msg.agent_key,
                     datetime.utcnow()
                 )
+
+                if is_new_instance and self._instance_connected_callback:
+                    await self._instance_connected_callback(
+                        heartbeat_msg.agent_key,
+                        heartbeat_msg.instance_id
+                    )
 
                 logger.debug(
                     f"收到心跳: {heartbeat_msg.agent_key}/"
@@ -152,6 +166,8 @@ class HeartbeatConsumer:
                     logger.warning(
                         f"实例超时: {agent_key}/{instance_id}"
                     )
+                    if self._instance_disconnected_callback:
+                        await self._instance_disconnected_callback(agent_key, instance_id)
 
                 if timeout_instances:
                     logger.info(f"清理了 {len(timeout_instances)} 个超时实例")
@@ -172,6 +188,13 @@ class HeartbeatConsumer:
             for instance_id, (ak, _) in self._active_instances.items()
             if ak == agent_key
         }
+
+    def get_active_service_map(self) -> Dict[str, Set[str]]:
+        """获取 agent_key -> 活跃实例 ID 集合映射。"""
+        service_map: Dict[str, Set[str]] = {}
+        for instance_id, (agent_key, _) in self._active_instances.items():
+            service_map.setdefault(agent_key, set()).add(instance_id)
+        return service_map
 
     def is_instance_active(self, instance_id: str) -> bool:
         """检查实例是否活跃"""

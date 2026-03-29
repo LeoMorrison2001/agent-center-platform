@@ -6,10 +6,13 @@
 import { ref, onUnmounted } from 'vue'
 
 export interface MonitorEvent {
-  type: 'instance.connected' | 'instance.disconnected' | 'monitor.connected'
+  type: 'instance.connected' | 'instance.disconnected' | 'monitor.connected' | 'task.created' | 'task.queued' | 'task.completed' | 'task.failed'
   agent_key?: string
   instance_id?: string
+  delivery_target?: string
   message?: string
+  task_id?: string
+  task_content?: string
 }
 
 type EventHandler = (event: MonitorEvent) => void

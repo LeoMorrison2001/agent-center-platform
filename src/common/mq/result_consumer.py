@@ -118,13 +118,13 @@ class ResultConsumer:
         """更新任务日志到数据库"""
         try:
             # 延迟导入避免循环依赖
-            from common.database import TaskLogCRUD, get_db_session_async
+            from common.database import TaskLogCRUD, TaskStatus, get_db_session_async
 
             async with get_db_session_async() as db:
                 TaskLogCRUD.update_task_status(
                     db=db,
                     task_id=result_msg.task_id,
-                    status="completed" if result_msg.success else "failed",
+                    status=TaskStatus.COMPLETED if result_msg.success else TaskStatus.FAILED,
                     result=result_msg.result,
                     error_message=None if result_msg.success else "任务执行失败",
                     instance_id=result_msg.instance_id,

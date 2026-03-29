@@ -1,12 +1,12 @@
 """
 数据模型定义 - 智能体服务通信契约
-根据文档中定义的JSON格式创建Pydantic模型
 """
 
 from datetime import datetime
-from typing import Optional
-from pydantic import BaseModel, Field
 from enum import Enum
+from typing import Literal, Optional
+
+from pydantic import BaseModel, Field
 
 
 class AgentType(str, Enum):
@@ -37,7 +37,7 @@ class AgentServiceResponse(BaseModel):
     type: str
     description: str
     created_at: datetime
-    working_count: int = Field(default=0, description="当前工作实例数量")
+    working_count: int = Field(default=0, description="当前活跃实例数量")
 
 
 class ToolDescription(BaseModel):
@@ -46,6 +46,101 @@ class ToolDescription(BaseModel):
     name: str
     description: str
     type: str
+
+
+class ServiceListResponse(BaseModel):
+    """服务列表响应模型"""
+    total: int
+    services: list[AgentServiceResponse]
+
+
+class AgentKeyValidationResponse(BaseModel):
+    """智能体 KEY 校验响应"""
+    valid: bool
+    exists: bool
+    message: str
+
+
+class MessageResponse(BaseModel):
+    """通用消息响应"""
+    message: str
+
+
+class PlatformStatistics(BaseModel):
+    """平台统计信息"""
+    total_services: int
+    active_services: int
+    total_instances: int
+    running_tasks: int
+
+
+class PlatformStatusResponse(BaseModel):
+    """平台状态响应"""
+    status: Literal["running"]
+    timestamp: str
+    statistics: PlatformStatistics
+    active_services_list: list[str]
+
+
+class TaskLogResponse(BaseModel):
+    """任务日志响应模型"""
+    id: int
+    task_id: str
+    agent_key: str
+    instance_id: Optional[str] = None
+    task_content: str
+    status: Literal["queued", "completed", "failed"]
+    result: Optional[str] = None
+    error_message: Optional[str] = None
+    created_at: datetime
+    started_at: Optional[datetime] = None
+    completed_at: Optional[datetime] = None
+    duration_ms: Optional[int] = None
+
+
+class TaskLogsResponse(BaseModel):
+    """任务日志列表响应"""
+    total: int
+    logs: list[TaskLogResponse]
+
+
+class TaskStatsResponse(BaseModel):
+    """任务统计响应"""
+    total: int
+    completed: int
+    failed: int
+    queued: int
+    success_rate: float
+
+
+class DispatchTaskRequest(BaseModel):
+    """任务分发请求"""
+    agent_key: str = Field(..., description="智能体服务标识")
+    task_content: str = Field(..., description="任务内容")
+
+
+class DispatchTaskResponse(BaseModel):
+    """任务分发响应"""
+    task_id: str
+    agent_key: str
+    status: Literal["queued"]
+    message: str
+
+
+class ServiceInstance(BaseModel):
+    """服务实例信息"""
+    instance_id: str
+
+
+class ServiceInstancesResponse(BaseModel):
+    """服务实例列表响应"""
+    agent_key: str
+    instances: list[ServiceInstance]
+
+
+class TestServiceRequest(BaseModel):
+    """服务测试请求"""
+    task_content: str = Field(default="测试任务", description="测试任务内容")
 
 
 # ==================== WebSocket 通信模型 ====================
@@ -116,4 +211,4 @@ class TaskInfo(BaseModel):
     instance_id: Optional[str] = None
     task_content: str
     created_at: datetime
-    status: str = "pending"  # pending, dispatched, completed, failed
+    status: str = "queued"  # queued, completed, failed

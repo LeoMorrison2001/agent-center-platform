@@ -131,7 +131,7 @@
     <!-- 测试对话框 -->
     <t-dialog
       v-model:visible="showTestDialog"
-      header="测试智能体实例"
+      header="测试服务"
       width="600"
       @confirm="handleTestConfirm"
     >
@@ -140,18 +140,11 @@
       </div>
       <div v-else>
         <t-form label-width="100px">
-          <t-form-item label="选择实例">
-            <t-select
-              v-model="testForm.instance_id"
-              placeholder="请选择要测试的实例"
-            >
-              <t-option
-                v-for="inst in testInstances"
-                :key="inst.instance_id"
-                :value="inst.instance_id"
-                :label="inst.instance_id"
-              />
-            </t-select>
+          <t-form-item label="在线实例">
+            <div class="instance-summary">
+              当前在线 {{ testInstances.length }} 个实例
+              <span v-if="testInstances.length">：{{ testInstances.map(inst => inst.instance_id).join(', ') }}</span>
+            </div>
           </t-form-item>
 
           <t-form-item label="测试任务">
@@ -165,11 +158,10 @@
         <div v-if="testResult" class="test-result">
           <div class="test-result-title">测试结果：</div>
           <div class="test-result-content">
-            <t-tag theme="success" v-if="testResult.status === 'dispatched'">任务已发送</t-tag>
+            <t-tag theme="success" v-if="testResult.status === 'queued'">任务已入队</t-tag>
             <t-tag theme="danger" v-else>发送失败</t-tag>
             <div class="test-result-detail">
-              任务ID: {{ testResult.task_id }}<br>
-              实例: {{ testResult.instance_id }}
+              任务ID: {{ testResult.task_id }}
             </div>
           </div>
         </div>
@@ -205,12 +197,11 @@ const formData = ref({
 // 测试相关状态
 const showTestDialog = ref(false)
 const testLoading = ref(false)
-const testInstances = ref<Array<{ instance_id: string; connected_at: string; last_heartbeat: string }>>([])
+const testInstances = ref<Array<{ instance_id: string }>>([])
 const testForm = ref({
-  instance_id: '',
   task_content: ''
 })
-const testResult = ref<{ task_id: string; instance_id: string; status: string } | null>(null)
+const testResult = ref<{ task_id: string; status: string } | null>(null)
 const currentTestService = ref<AgentService | null>(null)
 
 const rules = {
@@ -352,7 +343,6 @@ const handleConfirm = async () => {
 const openTestDialog = async (service: AgentService) => {
   currentTestService.value = service
   testResult.value = null
-  testForm.value.instance_id = ''
   testForm.value.task_content = '测试任务'
   showTestDialog.value = true
 
@@ -369,18 +359,12 @@ const openTestDialog = async (service: AgentService) => {
 }
 
 const handleTestConfirm = async () => {
-  if (!testForm.value.instance_id) {
-    MessagePlugin.warning('请选择要测试的实例')
-    return
-  }
-
   if (!currentTestService.value) return
 
   try {
     const result = await api.testServiceInstance(
       currentTestService.value.agent_key,
       {
-        instance_id: testForm.value.instance_id,
         task_content: testForm.value.task_content
       }
     )
@@ -461,6 +445,12 @@ onUnmounted(() => {
   margin-top: 8px;
   font-size: 12px;
   color: var(--td-text-color-secondary);
+}
+
+.instance-summary {
+  line-height: 1.6;
+  color: var(--td-text-color-secondary);
+  word-break: break-all;
 }
 </style>
 

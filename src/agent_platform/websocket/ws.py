@@ -22,7 +22,7 @@ async def websocket_monitor_endpoint(websocket: WebSocket):
 
     用于前端实时接收平台状态变化事件：
     - task.created: 任务已创建
-    - task.dispatched: 任务已分发
+    - task.queued: 任务已入队
     - task.completed: 任务已完成
     - instance.connected: 智能体实例连接（通过 MQ 心跳）
     - instance.disconnected: 智能体实例断开

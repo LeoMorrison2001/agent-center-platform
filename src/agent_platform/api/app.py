@@ -3,15 +3,27 @@ Agent Platform API 路由 - /api/platform
 """
 import logging
 from datetime import datetime
-from typing import List
 from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
-from common.database import get_db, AgentServiceCRUD, TaskLogCRUD, TaskLogDB
+from common.database import get_db, AgentServiceCRUD, TaskLogCRUD, TaskLogDB, TaskStatus
 from agent_platform.models import (
-    AgentServiceCreate, AgentServiceResponse
+    AgentKeyValidationResponse,
+    AgentServiceCreate,
+    AgentServiceResponse,
+    DispatchTaskRequest,
+    DispatchTaskResponse,
+    MessageResponse,
+    PlatformStatusResponse,
+    ServiceInstancesResponse,
+    ServiceListResponse,
+    TaskLogResponse,
+    TaskLogsResponse,
+    TaskStatsResponse,
+    TestServiceRequest,
+    ToolDescription,
 )
 from common.mq.heartbeat_consumer import heartbeat_consumer
 from agent_platform.websocket.monitor import monitor_manager
@@ -40,7 +52,7 @@ async def root():
     }
 
 
-@router.get("/services", tags=["Platform"])
+@router.get("/services", response_model=ServiceListResponse, tags=["Platform"])
 async def get_services(
     skip: int = 0,
     limit: int = None,
@@ -66,7 +78,7 @@ async def get_services(
     }
 
 
-@router.get("/services/validate/{agent_key}", tags=["Platform"])
+@router.get("/services/validate/{agent_key}", response_model=AgentKeyValidationResponse, tags=["Platform"])
 async def validate_agent_key(agent_key: str, db: Session = Depends(get_db)):
     """
     校验智能体KEY是否可用
@@ -154,7 +166,7 @@ async def update_service(
     return AgentServiceCRUD.to_response(service)
 
 
-@router.delete("/services/{agent_key}", tags=["Platform"])
+@router.delete("/services/{agent_key}", response_model=MessageResponse, tags=["Platform"])
 async def delete_service(agent_key: str, db: Session = Depends(get_db)):
     """
     删除智能体服务
@@ -170,14 +182,19 @@ async def delete_service(agent_key: str, db: Session = Depends(get_db)):
     return {"message": f"服务 '{agent_key}' 已删除"}
 
 
-@router.get("/status", tags=["Platform"])
+@router.get("/status", response_model=PlatformStatusResponse, tags=["Platform"])
 async def get_platform_status(db: Session = Depends(get_db)):
     """获取平台运行状态"""
     all_services = AgentServiceCRUD.get_all_services(db)
-    active_instances = heartbeat_consumer.get_active_instances()
+    active_service_map = heartbeat_consumer.get_active_service_map()
+    active_instance_ids = {
+        instance_id
+        for instance_ids in active_service_map.values()
+        for instance_id in instance_ids
+    }
 
     running_tasks = db.query(TaskLogDB).filter(
-        TaskLogDB.status.in_(["queued", "dispatched"])
+        TaskLogDB.status == TaskStatus.QUEUED
     ).count()
 
     return {
@@ -185,16 +202,32 @@ async def get_platform_status(db: Session = Depends(get_db)):
         "timestamp": datetime.utcnow().isoformat(),
         "statistics": {
             "total_services": len(all_services),
-            "active_instances": len(active_instances),
+            "active_services": len(active_service_map),
+            "total_instances": len(active_instance_ids),
             "running_tasks": running_tasks
         },
-        "active_instances_list": list(active_instances)
+        "active_services_list": sorted(active_service_map.keys())
     }
+
+
+@router.get("/tools", response_model=list[ToolDescription], tags=["Platform"])
+async def get_tools(db: Session = Depends(get_db)):
+    """返回当前平台注册服务的工具描述。"""
+    services = AgentServiceCRUD.get_all_services(db)
+    return [
+        {
+            "agent_key": service.agent_key,
+            "name": service.name,
+            "description": service.description,
+            "type": service.type
+        }
+        for service in services
+    ]
 
 
 # ==================== 任务日志 API ====================
 
-@router.get("/logs", tags=["Platform"])
+@router.get("/logs", response_model=TaskLogsResponse, tags=["Platform"])
 async def get_task_logs(
     skip: int = 0,
     limit: int = 50,
@@ -216,7 +249,7 @@ async def get_task_logs(
     }
 
 
-@router.get("/logs/{task_id}", tags=["Platform"])
+@router.get("/logs/{task_id}", response_model=TaskLogResponse, tags=["Platform"])
 async def get_task_log_detail(task_id: str, db: Session = Depends(get_db)):
     """获取单个任务详情"""
     log = TaskLogCRUD.get_task_log(db, task_id)
@@ -228,7 +261,7 @@ async def get_task_log_detail(task_id: str, db: Session = Depends(get_db)):
     return TaskLogCRUD.to_response(log)
 
 
-@router.get("/logs/stats/summary", tags=["Platform"])
+@router.get("/logs/stats/summary", response_model=TaskStatsResponse, tags=["Platform"])
 async def get_task_stats_summary(db: Session = Depends(get_db)):
     """获取任务统计摘要"""
     return TaskLogCRUD.get_task_stats(db)
@@ -236,8 +269,8 @@ async def get_task_stats_summary(db: Session = Depends(get_db)):
 
 # ==================== 任务调度接口 (供外部调用) ====================
 
-@router.post("/dispatch", tags=["Platform"])
-async def dispatch_task(task_request: dict, db: Session = Depends(get_db)):
+@router.post("/dispatch", response_model=DispatchTaskResponse, tags=["Platform"])
+async def dispatch_task(task_request: DispatchTaskRequest, db: Session = Depends(get_db)):
     """
     任务调度接口
 
@@ -251,14 +284,8 @@ async def dispatch_task(task_request: dict, db: Session = Depends(get_db)):
         task_id: 任务ID（平台生成）
         status: queued
     """
-    agent_key = task_request.get("agent_key")
-    task_content = task_request.get("task_content")
-
-    if not all([agent_key, task_content]):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="缺少必要参数: agent_key, task_content"
-        )
+    agent_key = task_request.agent_key
+    task_content = task_request.task_content
 
     # 验证服务是否存在
     service = AgentServiceCRUD.get_service_by_key(db, agent_key)
@@ -295,7 +322,7 @@ async def dispatch_task(task_request: dict, db: Session = Depends(get_db)):
         TaskLogCRUD.update_task_status(
             db=db,
             task_id=task_id,
-            status="failed",
+            status=TaskStatus.FAILED,
             error_message="任务发布失败"
         )
         raise HTTPException(
@@ -307,31 +334,31 @@ async def dispatch_task(task_request: dict, db: Session = Depends(get_db)):
     TaskLogCRUD.update_task_status(
         db=db,
         task_id=task_id,
-        status="queued",
+        status=TaskStatus.QUEUED,
         started_at=datetime.utcnow()
     )
 
-    # 推送任务分发事件（到队列）
-    await monitor_manager.broadcast_task_dispatched(task_id, agent_key, "queue")
+    # 推送任务入队事件
+    await monitor_manager.broadcast_task_queued(task_id, agent_key, "queue")
 
     logger.info(f"任务已发布到队列: {task_id} -> {agent_key}")
 
     return {
         "task_id": task_id,
         "agent_key": agent_key,
-        "status": "queued",
+        "status": TaskStatus.QUEUED,
         "message": "任务已加入队列"
     }
 
 
-@router.get("/services/{agent_key}/instances", tags=["Platform"])
+@router.get("/services/{agent_key}/instances", response_model=ServiceInstancesResponse, tags=["Platform"])
 async def get_service_instances(agent_key: str):
     """
     获取指定服务的所有活跃实例
 
     返回实例列表，包含 instance_id
     """
-    instances = heartbeat_consumer.get_active_instances_by_agent(agent_key)
+    active_instance_ids = sorted(heartbeat_consumer.get_active_instances_by_agent(agent_key))
 
     return {
         "agent_key": agent_key,
@@ -339,24 +366,26 @@ async def get_service_instances(agent_key: str):
             {
                 "instance_id": instance_id
             }
-            for instance_id in instances
+            for instance_id in active_instance_ids
         ]
     }
 
 
-@router.post("/services/{agent_key}/test", tags=["Platform"])
+@router.post("/services/{agent_key}/test", response_model=DispatchTaskResponse, tags=["Platform"])
 async def test_service(
     agent_key: str,
-    test_request: dict,
+    test_request: TestServiceRequest,
     db: Session = Depends(get_db)
 ):
     """
-    发送测试任务到指定服务
+    发送测试任务到指定服务。
+
+    当前 RabbitMQ 投递粒度是服务级，不支持定向到单个实例。
 
     Body:
         task_content: 测试任务内容（可选，默认为"测试任务"）
     """
-    task_content = test_request.get("task_content", "测试任务")
+    task_content = test_request.task_content
 
     # 验证服务是否存在
     service = AgentServiceCRUD.get_service_by_key(db, agent_key)
@@ -393,7 +422,7 @@ async def test_service(
         TaskLogCRUD.update_task_status(
             db=db,
             task_id=task_id,
-            status="failed",
+            status=TaskStatus.FAILED,
             error_message="任务发布失败"
         )
         raise HTTPException(
@@ -405,18 +434,18 @@ async def test_service(
     TaskLogCRUD.update_task_status(
         db=db,
         task_id=task_id,
-        status="queued",
+        status=TaskStatus.QUEUED,
         started_at=datetime.utcnow()
     )
 
-    # 推送任务分发事件（到队列）
-    await monitor_manager.broadcast_task_dispatched(task_id, agent_key, "queue")
+    # 推送任务入队事件
+    await monitor_manager.broadcast_task_queued(task_id, agent_key, "queue")
 
     logger.info(f"测试任务已发布: {task_id} -> {agent_key}")
 
     return {
         "task_id": task_id,
         "agent_key": agent_key,
-        "status": "queued",
+        "status": TaskStatus.QUEUED,
         "message": "测试任务已加入队列"
     }

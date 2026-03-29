@@ -108,8 +108,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { MessagePlugin } from 'tdesign-vue-next'
-
-const API_BASE = window.location.origin
+import { api, type DispatchTaskResponse, type TaskLog } from '@/api/services'
 
 // 参数表格列
 const paramColumns = [
@@ -165,11 +164,11 @@ const testForm = ref({
   task_content: '查询北京天气'
 })
 const testLoading = ref(false)
-const testResult = ref<any>(null)
+const testResult = ref<DispatchTaskResponse | null>(null)
 
 const queryTaskId = ref('')
 const queryLoading = ref(false)
-const queryResult = ref<any>(null)
+const queryResult = ref<TaskLog | null>(null)
 
 // 发送任务测试
 const handleDispatchTest = async () => {
@@ -178,20 +177,9 @@ const handleDispatchTest = async () => {
   queryResult.value = null
 
   try {
-    const response = await fetch(`${API_BASE}/api/platform/dispatch`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(testForm.value)
-    })
-
-    const data = await response.json()
+    const data = await api.dispatchTask(testForm.value)
     testResult.value = data
-
-    if (response.ok) {
-      MessagePlugin.success(`任务已提交，ID: ${data.task_id}`)
-    } else {
-      MessagePlugin.error(data.detail || '请求失败')
-    }
+    MessagePlugin.success(`任务已提交，ID: ${data.task_id}`)
   } catch (error) {
     MessagePlugin.error('网络错误')
     console.error(error)
@@ -218,15 +206,9 @@ const handleQueryTest = async () => {
   queryResult.value = null
 
   try {
-    const response = await fetch(`${API_BASE}/api/platform/logs/${queryTaskId.value}`)
-    const data = await response.json()
+    const data = await api.getTaskLog(queryTaskId.value)
     queryResult.value = data
-
-    if (response.ok) {
-      MessagePlugin.success('查询成功')
-    } else {
-      MessagePlugin.error(data.detail || '查询失败')
-    }
+    MessagePlugin.success('查询成功')
   } catch (error) {
     MessagePlugin.error('网络错误')
     console.error(error)

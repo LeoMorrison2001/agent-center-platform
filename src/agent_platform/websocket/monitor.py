@@ -88,13 +88,13 @@ class MonitorConnectionManager:
             "task_content": task_content
         })
 
-    async def broadcast_task_dispatched(self, task_id: str, agent_key: str, instance_id: str):
-        """广播任务分发事件"""
+    async def broadcast_task_queued(self, task_id: str, agent_key: str, delivery_target: str):
+        """广播任务入队事件"""
         await self.broadcast({
-            "type": "task.dispatched",
+            "type": "task.queued",
             "task_id": task_id,
             "agent_key": agent_key,
-            "instance_id": instance_id
+            "delivery_target": delivery_target
         })
 
     async def broadcast_task_completed(self, task_id: str, agent_key: str, success: bool):

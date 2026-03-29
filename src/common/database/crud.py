@@ -5,7 +5,7 @@ from datetime import datetime
 from typing import List, Optional
 from sqlalchemy.orm import Session
 
-from .models import AgentServiceDB, TaskLogDB
+from .models import AgentServiceDB, TaskLogDB, TaskStatus
 
 
 class AgentServiceCRUD:
@@ -91,7 +91,7 @@ class AgentServiceCRUD:
 
     @staticmethod
     def increment_working_count(db: Session, agent_key: str) -> bool:
-        """增加工作实例计数"""
+        """增加活跃实例计数"""
         service = db.query(AgentServiceDB).filter(
             AgentServiceDB.agent_key == agent_key
         ).first()
@@ -103,7 +103,7 @@ class AgentServiceCRUD:
 
     @staticmethod
     def decrement_working_count(db: Session, agent_key: str) -> bool:
-        """减少工作实例计数"""
+        """减少活跃实例计数"""
         service = db.query(AgentServiceDB).filter(
             AgentServiceDB.agent_key == agent_key
         ).first()
@@ -144,7 +144,7 @@ class TaskLogCRUD:
             agent_key=agent_key,
             instance_id=instance_id,
             task_content=task_content,
-            status="pending",
+            status=TaskStatus.QUEUED,
             created_at=datetime.utcnow()
         )
         db.add(log)
@@ -232,13 +232,13 @@ class TaskLogCRUD:
         """获取任务统计信息"""
         total = db.query(TaskLogDB).count()
         completed = db.query(TaskLogDB).filter(
-            TaskLogDB.status == "completed"
+            TaskLogDB.status == TaskStatus.COMPLETED
         ).count()
         failed = db.query(TaskLogDB).filter(
-            TaskLogDB.status == "failed"
+            TaskLogDB.status == TaskStatus.FAILED
         ).count()
-        pending = db.query(TaskLogDB).filter(
-            TaskLogDB.status == "pending"
+        queued = db.query(TaskLogDB).filter(
+            TaskLogDB.status == TaskStatus.QUEUED
         ).count()
 
         success_rate = (completed / total * 100) if total > 0 else 0
@@ -247,7 +247,7 @@ class TaskLogCRUD:
             "total": total,
             "completed": completed,
             "failed": failed,
-            "pending": pending,
+            "queued": queued,
             "success_rate": round(success_rate, 2)
         }
 
