@@ -3,6 +3,7 @@
 """
 import asyncio
 import logging
+import os
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -40,9 +41,12 @@ async def lifespan(app: FastAPI):
     logger.info("智能体服务平台启动中...")
     logger.info("=" * 50)
 
-    # 初始化数据库
-    init_db()
-    logger.info("数据库初始化完成")
+    db_init_mode = os.getenv("DB_INIT_MODE", "auto_create")
+    if db_init_mode == "auto_create":
+        init_db()
+        logger.info("数据库初始化完成（auto_create）")
+    else:
+        logger.info("跳过自动建表，依赖 Alembic 迁移（migrations_only）")
 
     # 连接 RabbitMQ
     await mq_manager.connect()

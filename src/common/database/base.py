@@ -6,16 +6,28 @@ from contextlib import contextmanager, asynccontextmanager
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, Session
 
+DEFAULT_DATABASE_URL = "sqlite:///./sunday_agents.db"
+
+
+def get_database_url() -> str:
+    """获取数据库连接串。"""
+    return os.getenv("DATABASE_URL", DEFAULT_DATABASE_URL)
+
+
+def get_engine_kwargs(database_url: str) -> dict:
+    """根据数据库类型返回引擎参数。"""
+    return {
+        "connect_args": {"check_same_thread": False}
+    } if database_url.startswith("sqlite") else {}
+
+
 # 数据库配置（从环境变量读取）
-DATABASE_URL = os.getenv(
-    "DATABASE_URL",
-    "sqlite:///./sunday_agents.db"
-)
+DATABASE_URL = get_database_url()
 
 # 创建数据库引擎
 engine = create_engine(
     DATABASE_URL,
-    connect_args={"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {},
+    **get_engine_kwargs(DATABASE_URL),
     echo=False  # 设为 True 可查看 SQL 日志
 )
 
@@ -27,7 +39,10 @@ from .models import Base
 
 
 def init_db():
-    """初始化数据库，创建所有表"""
+    """初始化数据库，创建所有表。
+
+    仅用于开发环境兜底。生产和长期演进应优先使用 Alembic 迁移。
+    """
     Base.metadata.create_all(bind=engine)
 
 
