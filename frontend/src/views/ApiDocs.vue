@@ -41,7 +41,7 @@
 
             <div class="api-section">
               <h4>在线测试</h4>
-              <t-form @submit.prevent="handleDispatchTest">
+              <t-form>
                 <t-form-item label="智能体Key">
                   <t-input v-model="testForm.agent_key" placeholder="weather" />
                 </t-form-item>
@@ -49,7 +49,7 @@
                   <t-textarea v-model="testForm.task_content" placeholder="查询北京天气" />
                 </t-form-item>
                 <t-form-item>
-                  <t-button theme="primary" type="submit" :loading="testLoading">发送测试</t-button>
+                  <t-button theme="primary" @click="handleDispatchTest" :loading="testLoading">发送测试</t-button>
                 </t-form-item>
               </t-form>
               <div v-if="testResult" class="test-result">
@@ -220,7 +220,8 @@ const handleQueryTest = async () => {
 
 <style scoped>
 .api-docs {
-  max-width: 1400px;
+  width: 100%;
+  min-width: 0;
 }
 
 .page-header {

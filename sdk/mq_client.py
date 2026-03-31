@@ -89,7 +89,11 @@ class MQClient:
             queue_name = f"agent.{self.agent_key}.tasks"
             self._task_queue = await self._channel.declare_queue(
                 queue_name,
-                durable=True
+                durable=True,
+                arguments={
+                    "x-max-length": 10000,
+                    "x-overflow": "reject-publish"
+                }
             )
 
             # 声明结果交换机（用于发送结果）
@@ -287,10 +291,10 @@ class MQClient:
         """心跳循环"""
         while self._is_running and self._is_connected:
             try:
-                await asyncio.sleep(self.heartbeat_interval)
-
                 if self._is_connected:
                     await self._send_heartbeat()
+
+                await asyncio.sleep(self.heartbeat_interval)
 
             except asyncio.CancelledError:
                 break

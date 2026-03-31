@@ -114,7 +114,7 @@ class AgentServiceCRUD:
         return False
 
     @staticmethod
-    def to_response(service: AgentServiceDB) -> dict:
+    def to_response(service: AgentServiceDB, working_count: Optional[int] = None) -> dict:
         """转换为响应字典"""
         return {
             "id": service.id,
@@ -123,7 +123,7 @@ class AgentServiceCRUD:
             "type": service.type,
             "description": service.description,
             "created_at": service.created_at,
-            "working_count": service.working_count
+            "working_count": service.working_count if working_count is None else working_count
         }
 
 

@@ -109,6 +109,8 @@ html, body {
   background: #fff;
   border-right: 1px solid var(--td-component-border);
   width: 200px;
+  min-width: 200px;
+  flex: 0 0 200px;
   overflow-y: auto;
   overflow-x: hidden;
 }
@@ -119,6 +121,7 @@ html, body {
   min-height: calc(100vh - 64px);
   overflow-y: auto;
   height: calc(100vh - 64px);
+  min-width: 0;
 }
 
 /* TDesign 布局修复 */
@@ -133,15 +136,19 @@ html, body {
 }
 
 :deep(.t-layout__body) {
+  display: flex;
   overflow: hidden;
+  min-width: 0;
 }
 
 :deep(.t-aside) {
+  flex: 0 0 200px;
   overflow-y: auto;
   overflow-x: hidden;
 }
 
 :deep(.t-content) {
   overflow-y: auto;
+  min-width: 0;
 }
 </style>

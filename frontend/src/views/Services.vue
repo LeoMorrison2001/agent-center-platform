@@ -406,7 +406,8 @@ onUnmounted(() => {
 
 <style scoped>
 .services {
-  max-width: 1400px;
+  width: 100%;
+  min-width: 0;
 }
 
 .page-header {

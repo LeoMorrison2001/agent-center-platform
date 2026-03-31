@@ -64,17 +64,25 @@ async def get_services(
     - 不传参数或 limit=None: 返回全部
     - 传 skip 和 limit: 返回分页数据
     """
+    active_service_map = heartbeat_consumer.get_active_service_map()
+
+    def serialize_service(service):
+        return AgentServiceCRUD.to_response(
+            service,
+            working_count=len(active_service_map.get(service.agent_key, set()))
+        )
+
     if limit is None:
         services = AgentServiceCRUD.get_all_services(db)
         return {
             "total": len(services),
-            "services": [AgentServiceCRUD.to_response(s) for s in services]
+            "services": [serialize_service(s) for s in services]
         }
 
     services, total = AgentServiceCRUD.get_services_paginated(db, skip=skip, limit=limit)
     return {
         "total": total,
-        "services": [AgentServiceCRUD.to_response(s) for s in services]
+        "services": [serialize_service(s) for s in services]
     }
 
 

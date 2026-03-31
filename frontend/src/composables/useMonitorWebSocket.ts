@@ -45,7 +45,7 @@ class MonitorWebSocketManager {
     }
 
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-    const host = import.meta.env.VITE_WS_HOST || 'localhost:3150'
+    const host = import.meta.env.VITE_WS_HOST || '127.0.0.1:3150'
     // 更新为正确的 WebSocket 路径：/ws/platform/monitor
     const wsUrl = `${protocol}//${host}/ws/platform/monitor`
 

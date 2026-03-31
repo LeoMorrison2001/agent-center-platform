@@ -118,7 +118,8 @@ onMounted(async () => {
 
 <style scoped>
 .dashboard {
-  max-width: 1400px;
+  width: 100%;
+  min-width: 0;
 }
 
 .page-header {

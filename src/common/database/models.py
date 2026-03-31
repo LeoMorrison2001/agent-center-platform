@@ -20,10 +20,10 @@ class AgentServiceDB(Base):
     __tablename__ = "agent_services"
 
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
-    agent_key = Column(String, unique=True, nullable=False, index=True)
-    name = Column(String, nullable=False)
-    type = Column(String, nullable=False)
-    description = Column(String, nullable=False)
+    agent_key = Column(String(100), unique=True, nullable=False, index=True)
+    name = Column(String(255), nullable=False)
+    type = Column(String(100), nullable=False)
+    description = Column(Text, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     working_count = Column(Integer, default=0, nullable=False)
 
@@ -33,11 +33,11 @@ class TaskLogDB(Base):
     __tablename__ = "task_logs"
 
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
-    task_id = Column(String, nullable=False, index=True)
-    agent_key = Column(String, nullable=False, index=True)
-    instance_id = Column(String)
+    task_id = Column(String(100), nullable=False, index=True)
+    agent_key = Column(String(100), nullable=False, index=True)
+    instance_id = Column(String(100))
     task_content = Column(Text)
-    status = Column(String, default=TaskStatus.QUEUED)  # queued, completed, failed
+    status = Column(String(20), default=TaskStatus.QUEUED)  # queued, completed, failed
     result = Column(Text)
     error_message = Column(Text)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)

@@ -15,7 +15,7 @@
 - Backend: FastAPI, SQLAlchemy, RabbitMQ
 - Frontend: Vue 3, Vite, Pinia, TDesign
 - SDK / Workers: Python
-- Database: SQLite by default, MySQL supported via `pymysql`
+- Database: MySQL by default, SQLite also supported
 - Migration: Alembic
 
 ## Repository Layout
@@ -91,11 +91,11 @@ Copy-Item .env.example .env
 # RabbitMQ
 RABBITMQ_URL=amqp://guest:guest@localhost:5672/
 
-# SQLite
-DATABASE_URL=sqlite:///./sunday_agents.db
-
 # MySQL
-# DATABASE_URL=mysql+pymysql://user:password@localhost:3306/agent_platform
+DATABASE_URL=mysql+pymysql://root:tcrj%40123456@192.168.10.211:3306/agent_platform?charset=utf8mb4
+
+# SQLite
+# DATABASE_URL=sqlite:///./sunday_agents.db
 
 # 数据库初始化模式
 # auto_create: 本地开发兜底自动建表
@@ -135,27 +135,25 @@ npm run build
 
 ## Database
 
-项目默认使用 SQLite，也支持 MySQL。
-
-### SQLite
-
-默认配置：
-
-```env
-DATABASE_URL=sqlite:///./sunday_agents.db
-```
-
-适合本地开发和快速验证。
+项目默认使用 MySQL，也支持 SQLite。
 
 ### MySQL
 
 示例配置：
 
 ```env
-DATABASE_URL=mysql+pymysql://user:password@localhost:3306/agent_platform
+DATABASE_URL=mysql+pymysql://root:tcrj%40123456@192.168.10.211:3306/agent_platform?charset=utf8mb4
 ```
 
-当前仓库已经包含 `pymysql` 依赖，因此代码层面可以直接切换到 MySQL。
+当前仓库已经包含 `pymysql` 依赖，默认配置即可直接连接 MySQL。建议提前创建 `agent_platform` 数据库，并使用 `utf8mb4` 字符集。
+
+### SQLite
+
+如需切回 SQLite，可改为：
+
+```env
+DATABASE_URL=sqlite:///./sunday_agents.db
+```
 
 ## Alembic Migration
 

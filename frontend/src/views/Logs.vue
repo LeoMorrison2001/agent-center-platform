@@ -385,7 +385,8 @@ onUnmounted(() => {
 
 <style scoped>
 .logs {
-  max-width: 1400px;
+  width: 100%;
+  min-width: 0;
 }
 
 .page-header {

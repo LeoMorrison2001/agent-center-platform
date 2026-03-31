@@ -4,8 +4,11 @@
 """
 
 import asyncio
+import json
 import logging
+import os
 import uuid
+from urllib import error, request
 from typing import Callable, List
 
 from .mq_client import MQClient
@@ -40,7 +43,9 @@ class AgentWorker:
         self,
         agent_key: str,
         mq_url: str = "amqp://guest:guest@localhost:5672/",
-        heartbeat_interval: int = 30
+        heartbeat_interval: int = 30,
+        platform_api_base_url: str | None = None,
+        require_registered_service: bool = True
     ):
         """
         初始化智能体工作类
@@ -54,6 +59,12 @@ class AgentWorker:
         self.mq_url = mq_url
         self.instance_id = f"inst_{uuid.uuid4().hex[:12]}"
         self.heartbeat_interval = heartbeat_interval
+        self.platform_api_base_url = (
+            platform_api_base_url
+            or os.getenv("PLATFORM_API_BASE_URL")
+            or "http://127.0.0.1:3150"
+        ).rstrip("/")
+        self.require_registered_service = require_registered_service
 
         # 运行状态
         self._is_running = False
@@ -68,6 +79,31 @@ class AgentWorker:
         logger.info(
             f"AgentWorker 初始化: {self.agent_key}/{self.instance_id}"
         )
+
+    def _validate_registered_service(self):
+        """启动前校验 agent_key 是否已在平台注册。"""
+        validate_url = f"{self.platform_api_base_url}/api/platform/services/validate/{self.agent_key}"
+
+        try:
+            with request.urlopen(validate_url, timeout=10) as response:
+                payload = json.loads(response.read().decode("utf-8"))
+        except error.HTTPError as exc:
+            raise RuntimeError(
+                f"无法校验服务 '{self.agent_key}'，平台返回 HTTP {exc.code}: {validate_url}"
+            ) from exc
+        except error.URLError as exc:
+            raise RuntimeError(
+                f"无法连接平台校验服务 '{self.agent_key}': {validate_url} ({exc.reason})"
+            ) from exc
+        except Exception as exc:
+            raise RuntimeError(
+                f"校验服务 '{self.agent_key}' 失败: {exc}"
+            ) from exc
+
+        if not payload.get("exists", False):
+            raise RuntimeError(
+                f"服务 '{self.agent_key}' 未在平台注册，禁止启动 worker。请先在平台创建该服务后再启动。"
+            )
 
     def on_task(self, func: Callable[[str], str]) -> Callable[[str], str]:
         """
@@ -103,6 +139,9 @@ class AgentWorker:
         if self._is_running:
             logger.warning("AgentWorker 已在运行中")
             return
+
+        if self.require_registered_service:
+            self._validate_registered_service()
 
         self._is_running = True
 
