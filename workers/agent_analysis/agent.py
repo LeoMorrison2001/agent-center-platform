@@ -197,10 +197,17 @@ worker = AgentWorker(
 analysis_agent = AnalysisAgent()
 
 
+def unwrap_payload(task_obj: dict[str, Any]) -> dict[str, Any]:
+    payload = task_obj.get("payload")
+    if isinstance(payload, dict):
+        return payload
+    return task_obj
+
+
 @worker.on_task
 def handle_task(task: str) -> str:
     try:
-        payload = json.loads(task)
+        task_obj = json.loads(task)
     except json.JSONDecodeError as exc:
         logger.error("任务内容不是合法 JSON: %s", exc)
         return json.dumps({
@@ -210,6 +217,12 @@ def handle_task(task: str) -> str:
             "error": f"任务内容不是合法 JSON: {exc}",
         }, ensure_ascii=False)
 
+    payload = unwrap_payload(task_obj)
+    logger.info(
+        "agent_analysis received task, top_level_keys=%s, payload_keys=%s",
+        list(task_obj.keys()) if isinstance(task_obj, dict) else [],
+        list(payload.keys()) if isinstance(payload, dict) else [],
+    )
     result = analysis_agent.invoke(payload)
     return json.dumps(result, ensure_ascii=False)
 
