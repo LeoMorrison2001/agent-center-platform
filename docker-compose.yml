@@ -1,0 +1,15 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: agent-center-platform
+    env_file:
+      - .env
+    environment:
+      RUN_MIGRATIONS: "true"
+      DB_INIT_MODE: migrations_only
+    ports:
+      - "8088:8088"
+    restart: unless-stopped
+
