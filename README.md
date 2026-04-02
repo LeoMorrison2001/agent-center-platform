@@ -92,7 +92,7 @@ Copy-Item .env.example .env
 RABBITMQ_URL=amqp://guest:guest@localhost:5672/
 
 # MySQL
-DATABASE_URL=mysql+pymysql://root:tcrj%40123456@192.168.10.211:3306/agent_platform?charset=utf8mb4
+DATABASE_URL=mysql+pymysql://root:tcrj%40123456@192.168.10.212:3306/agent_platform?charset=utf8mb4
 
 # SQLite
 # DATABASE_URL=sqlite:///./sunday_agents.db
@@ -142,7 +142,7 @@ npm run build
 示例配置：
 
 ```env
-DATABASE_URL=mysql+pymysql://root:tcrj%40123456@192.168.10.211:3306/agent_platform?charset=utf8mb4
+DATABASE_URL=mysql+pymysql://root:tcrj%40123456@192.168.10.212:3306/agent_platform?charset=utf8mb4
 ```
 
 当前仓库已经包含 `pymysql` 依赖，默认配置即可直接连接 MySQL。建议提前创建 `agent_platform` 数据库，并使用 `utf8mb4` 字符集。

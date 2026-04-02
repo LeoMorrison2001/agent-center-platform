@@ -1,0 +1,28 @@
+services:
+  agent-analysis-worker:
+    build:
+      context: .
+      dockerfile: workers/Dockerfile
+      args:
+        WORKER_DIR: agent_analysis
+    container_name: agent-analysis-worker
+    env_file:
+      - workers/agent_analysis/.env
+    environment:
+      WORKER_DIR: agent_analysis
+      WORKER_REPLICAS: "5"
+    restart: unless-stopped
+
+  face-assessment-analysis-worker:
+    build:
+      context: .
+      dockerfile: workers/Dockerfile
+      args:
+        WORKER_DIR: face_assessment_analysis
+    container_name: face-assessment-analysis-worker
+    env_file:
+      - workers/face_assessment_analysis/.env
+    environment:
+      WORKER_DIR: face_assessment_analysis
+      WORKER_REPLICAS: "5"
+    restart: unless-stopped

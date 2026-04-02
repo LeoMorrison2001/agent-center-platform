@@ -6,7 +6,7 @@ from contextlib import contextmanager, asynccontextmanager
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, Session
 
-DEFAULT_DATABASE_URL = "mysql+pymysql://root:tcrj%40123456@192.168.10.211:3306/agent_platform?charset=utf8mb4"
+DEFAULT_DATABASE_URL = "mysql+pymysql://root:tcrj%40123456@192.168.10.212:3306/agent_platform?charset=utf8mb4"
 
 
 def get_database_url() -> str:

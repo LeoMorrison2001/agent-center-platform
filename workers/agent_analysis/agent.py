@@ -192,7 +192,7 @@ class AnalysisAgent:
 
 worker = AgentWorker(
     agent_key="agent_analysis",
-    mq_url=os.getenv("RABBITMQ_URL", "amqp://guest:guest@localhost:5672/"),
+    mq_url=os.getenv("RABBITMQ_URL", "amqp://admin:tcrj%40123456@192.168.10.212:5672/%2Fagent"),
 )
 analysis_agent = AnalysisAgent()
 

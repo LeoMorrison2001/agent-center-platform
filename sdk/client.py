@@ -29,7 +29,7 @@ class AgentWorker:
     使用示例:
         worker = AgentWorker(
             agent_key="weather_agent",
-            mq_url="amqp://guest:guest@localhost:5672/"
+            mq_url="amqp://admin:tcrj%40123456@192.168.10.212:5672/%2Fagent"
         )
 
         @worker.on_task
@@ -42,7 +42,7 @@ class AgentWorker:
     def __init__(
         self,
         agent_key: str,
-        mq_url: str = "amqp://guest:guest@localhost:5672/",
+        mq_url: str = "amqp://admin:tcrj%40123456@192.168.10.212:5672/%2Fagent",
         heartbeat_interval: int = 30,
         platform_api_base_url: str | None = None,
         require_registered_service: bool = True
@@ -62,7 +62,7 @@ class AgentWorker:
         self.platform_api_base_url = (
             platform_api_base_url
             or os.getenv("PLATFORM_API_BASE_URL")
-            or "http://127.0.0.1:3150"
+            or "http://192.168.10.212:2001"
         ).rstrip("/")
         self.require_registered_service = require_registered_service
 

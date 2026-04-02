@@ -462,7 +462,7 @@ emotionSpectrum={json.dumps(spectrum, ensure_ascii=False)}
 
 worker = AgentWorker(
     agent_key="face_assessment_analysis",
-    mq_url=os.getenv("RABBITMQ_URL", "amqp://guest:guest@localhost:5672/"),
+    mq_url=os.getenv("RABBITMQ_URL", "amqp://admin:tcrj%40123456@192.168.10.212:5672/%2Fagent"),
 )
 
 face_assessment_agent = FaceAssessmentAgent()

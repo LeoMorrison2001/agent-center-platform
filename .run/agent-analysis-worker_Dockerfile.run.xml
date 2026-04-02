@@ -1,0 +1,13 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="agent-analysis-worker-5x/Dockerfile" type="docker-deploy" factoryName="dockerfile" server-name="192.168.10.212">
+    <deployment type="dockerfile">
+      <settings>
+        <option name="imageTag" value="agent-analysis-worker" />
+        <option name="containerName" value="agent-analysis-worker" />
+        <option name="commandLineOptions" value="--env-file .env -e WORKER_REPLICAS=5" />
+        <option name="sourceFilePath" value="Dockerfile.agent-analysis-worker" />
+      </settings>
+    </deployment>
+    <method v="2" />
+  </configuration>
+</component>
